@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# User data (contains tokens!)
+custom_components/tado_ce/data/
+
+# Backups
+*.backup
+*.bak*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Internal documentation (private - not synced to GitHub)
+DEV/
