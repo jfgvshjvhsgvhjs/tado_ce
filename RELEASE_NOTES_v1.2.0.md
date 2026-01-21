@@ -22,7 +22,7 @@ Each Tado zone now appears as a separate device in Home Assistant for better org
 - ✅ No manual reconfiguration needed
 - ✅ Better organization in the Devices page
 
-See [BREAKING_CHANGES_v1.2.0.md](BREAKING_CHANGES_v1.2.0.md) for detailed migration guide.
+**Migration**: See "🔄 Migration Guide" section below for upgrade instructions.
 
 ---
 
@@ -369,8 +369,8 @@ None at this time. Please report any issues on [GitHub](https://github.com/hiall
 ## 📚 Additional Resources
 
 - [CHANGELOG.md](CHANGELOG.md) - Complete change history
-- [BREAKING_CHANGES_v1.2.0.md](BREAKING_CHANGES_v1.2.0.md) - Detailed migration guide
 - [README.md](README.md) - Installation and configuration guide
+- [ENTITIES.md](ENTITIES.md) - Complete entity reference
 - [GitHub Issues](https://github.com/hiall-fyi/tado_ce/issues) - Report bugs or request features
 
 ---
