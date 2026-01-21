@@ -216,14 +216,14 @@ This will:
    # Old (v1.1.0)
    service: water_heater.set_operation_mode
    target:
-     entity_id: water_heater.tado_ce_utility
+     entity_id: water_heater.utility
    data:
      operation_mode: "on"
    
    # New (v1.2.0)
    service: water_heater.set_operation_mode
    target:
-     entity_id: water_heater.tado_ce_utility
+     entity_id: water_heater.utility
    data:
      operation_mode: "heat"
    ```
@@ -514,14 +514,14 @@ Once set up, you'll see your Tado zones organized as separate devices with clean
 
 ## 📊 Entities
 
-### API Sensors
+### API Sensors (Hub Entities)
 
 | Entity | Description |
 |--------|-------------|
 | `sensor.tado_ce_api_usage` | API calls used today (e.g. "142/5000") |
 | `sensor.tado_ce_api_reset` | Time until rate limit resets (e.g. "5h 30m") |
 
-### Weather Sensors
+### Weather Sensors (Hub Entities)
 
 | Entity | Description |
 |--------|-------------|
@@ -529,39 +529,41 @@ Once set up, you'll see your Tado zones organized as separate devices with clean
 | `sensor.tado_ce_solar_intensity` | Solar intensity percentage |
 | `sensor.tado_ce_weather_state` | Current weather condition |
 
-### Per Heating Zone
+### Per Heating Zone (Zone Entities - No Prefix)
 
 | Entity | Description |
 |--------|-------------|
-| `climate.tado_ce_{zone}` | Climate entity for control |
-| `sensor.tado_ce_{zone}_temperature` | Current temperature |
-| `sensor.tado_ce_{zone}_humidity` | Current humidity |
-| `sensor.tado_ce_{zone}_heating` | Heating power (0-100%) |
-| `sensor.tado_ce_{zone}_target` | Target temperature |
-| `sensor.tado_ce_{zone}_mode` | Mode (Manual/Schedule/Off) |
-| `sensor.tado_ce_{zone}_battery` | Battery status (NORMAL/LOW) |
-| `sensor.tado_ce_{zone}_connection` | Device connection (Online/Offline) |
-| `binary_sensor.tado_ce_{zone}_open_window` | Open window detected |
+| `climate.{zone}` | Climate entity for control |
+| `sensor.{zone}_temperature` | Current temperature |
+| `sensor.{zone}_humidity` | Current humidity |
+| `sensor.{zone}_heating` | Heating power (0-100%) |
+| `sensor.{zone}_target` | Target temperature |
+| `sensor.{zone}_mode` | Mode (Manual/Schedule/Off) |
+| `sensor.{zone}_battery` | Battery status (NORMAL/LOW) |
+| `sensor.{zone}_connection` | Device connection (Online/Offline) |
+| `binary_sensor.{zone}_open_window` | Open window detected |
 
-### Switches
+**Note:** `{zone}` is your zone name in lowercase with spaces replaced by underscores. For example, "Living Room" becomes `living_room`.
+
+### Switches (Zone & Hub Entities)
 
 | Entity | Description | API Calls |
 |--------|-------------|-----------|
-| `switch.tado_ce_away_mode` | Toggle Home/Away mode manually | 1 per toggle |
-| `switch.tado_ce_{zone}_child_lock` | Enable/disable child lock | 1 per toggle |
-| `switch.tado_ce_{zone}_early_start` | Enable/disable smart pre-heating | 1 per toggle |
+| `switch.tado_ce_away_mode` | Toggle Home/Away mode manually (Hub) | 1 per toggle |
+| `switch.{zone}_child_lock` | Enable/disable child lock (Zone) | 1 per toggle |
+| `switch.{zone}_early_start` | Enable/disable smart pre-heating (Zone) | 1 per toggle |
 
 ### Other Entities
 
 | Entity | Description |
 |--------|-------------|
-| `binary_sensor.tado_ce_home` | Home/Away status (geofencing) |
-| `water_heater.tado_ce_{zone}` | Hot water control with AUTO/HEAT/OFF modes |
-| `sensor.tado_ce_{zone}_boiler_flow_temperature` | Boiler flow temperature (hot water zones only) |
-| `button.tado_ce_{zone}_timer_30min` | Quick 30-minute hot water timer |
-| `button.tado_ce_{zone}_timer_60min` | Quick 60-minute hot water timer |
-| `button.tado_ce_{zone}_timer_90min` | Quick 90-minute hot water timer |
-| `device_tracker.tado_ce_{device}` | Mobile device presence |
+| `binary_sensor.tado_ce_home` | Home/Away status (geofencing) - Hub |
+| `water_heater.{zone}` | Hot water control with AUTO/HEAT/OFF modes |
+| `sensor.{zone}_boiler_flow_temperature` | Boiler flow temperature (hot water zones only) |
+| `button.{zone}_timer_30min` | Quick 30-minute hot water timer |
+| `button.{zone}_timer_60min` | Quick 60-minute hot water timer |
+| `button.{zone}_timer_90min` | Quick 90-minute hot water timer |
+| `device_tracker.tado_ce_{device}` | Mobile device presence - Hub |
 
 The water heater entity supports three operation modes:
 
@@ -644,7 +646,7 @@ Set heating/cooling with a timer. **Compatible with official Tado integration.**
 ```yaml
 service: tado_ce.set_climate_timer
 target:
-  entity_id: climate.tado_ce_lounge
+  entity_id: climate.lounge
 data:
   temperature: 22
   duration: 60  # minutes
@@ -663,7 +665,7 @@ Turn on hot water with a timer. **Compatible with official Tado integration.**
 ```yaml
 service: tado_ce.set_water_heater_timer
 target:
-  entity_id: water_heater.tado_ce_utility
+  entity_id: water_heater.utility
 data:
   duration: 30  # minutes
 ```
@@ -677,7 +679,7 @@ Delete any manual override and return to schedule.
 ```yaml
 service: tado_ce.resume_schedule
 target:
-  entity_id: climate.tado_ce_lounge
+  entity_id: climate.lounge
 ```
 
 ### tado_ce.set_climate_temperature_offset
@@ -687,7 +689,7 @@ Set temperature offset (calibration) for a device. **Compatible with official Ta
 ```yaml
 service: tado_ce.set_climate_temperature_offset
 data:
-  entity_id: climate.tado_ce_lounge
+  entity_id: climate.lounge
   offset: 0.5  # Celsius (-10 to +10)
 ```
 
@@ -710,7 +712,7 @@ Configure temperature when everyone is away.
 ```yaml
 service: tado_ce.set_away_configuration
 data:
-  entity_id: climate.tado_ce_lounge
+  entity_id: climate.lounge
   mode: auto  # auto, manual, or off
   comfort_level: 50  # 0=Eco, 50=Balance, 100=Comfort
 ```
