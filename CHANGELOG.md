@@ -5,6 +5,22 @@ All notable changes to Tado CE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-01-21
+
+### Fixed
+- **CRITICAL: v1.1.0 → v1.2.0 upgrade issues**: Fixed duplicate integration entries appearing after upgrade from v1.1.0. Added proper migration logic and unique ID to prevent multiple instances.
+- **Automatic duplicate cleanup**: Integration now automatically detects and removes duplicate entries on startup (keeps newest version).
+- **Migration handling**: Enhanced `async_migrate_entry` to gracefully handle missing `zones_info.json` file during upgrade.
+- **Duplicate prevention**: Added unique ID check in config flow to prevent duplicate integration entries.
+
+### Changed
+- **Improved migration**: Migration now logs more information and handles edge cases better.
+- **README updates**: Added comprehensive troubleshooting section for upgrade issues.
+
+### Notes
+- If upgrading from v1.1.0 and experiencing duplicate hubs, remove all Tado CE entries and re-add the integration.
+- Entity IDs are preserved during clean reinstall - automations will continue to work.
+
 ## [1.2.0] - 2026-01-21
 
 > **Development Note**: This release underwent comprehensive engineering audit. All 7 critical fixes verified.

@@ -6,7 +6,7 @@
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.1.2-blue?style=for-the-badge&logo=home-assistant) ![Tado](https://img.shields.io/badge/Tado-V3%2FV3%2B-orange?style=for-the-badge) ![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)
 
 <!-- Status Badges -->
-![Version](https://img.shields.io/badge/Version-1.2.0-purple?style=for-the-badge) ![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=for-the-badge) ![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=for-the-badge) ![Tests](https://img.shields.io/badge/Tests-Passing-success?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.2.1-purple?style=for-the-badge) ![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=for-the-badge) ![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=for-the-badge) ![Tests](https://img.shields.io/badge/Tests-Passing-success?style=for-the-badge)
 
 <!-- Community Badges -->
 ![GitHub stars](https://img.shields.io/github/stars/hiall-fyi/tado_ce?style=for-the-badge&logo=github) ![GitHub forks](https://img.shields.io/github/forks/hiall-fyi/tado_ce?style=for-the-badge&logo=github) ![GitHub issues](https://img.shields.io/github/issues/hiall-fyi/tado_ce?style=for-the-badge&logo=github) ![GitHub last commit](https://img.shields.io/github/last-commit/hiall-fyi/tado_ce?style=for-the-badge&logo=github)
@@ -202,11 +202,75 @@ This will:
 
 ### Migration Steps
 
+**⚠️ If upgrading from v1.1.0, you may see duplicate Tado CE hubs after upgrade. This is a known issue fixed in v1.2.1.**
+
+**Recommended Upgrade Path (Clean Install):**
+
 1. **Backup Your Configuration**
    - Export automations and dashboards
    - Take screenshots of your current setup
 
-2. **Update Automations**
+2. **Remove Old Integration**
+   - Settings → Devices & Services → Tado CE → "..." → Delete
+   - If you see two Tado CE entries, delete both
+
+3. **Restart Home Assistant**
+
+4. **Re-add the Integration**
+   - Settings → Devices & Services → Add Integration → Tado CE
+   - Your entity IDs will be preserved
+
+**Alternative: Update in Place (v1.2.1+)**
+
+If you're upgrading to v1.2.1 or later, the integration includes automatic migration:
+
+1. **Update Automations First**
+   - Search for `tado_ce.set_temperature_offset`
+   - Replace with `tado_ce.set_climate_temperature_offset`
+   - Update hot water automations: `operation_mode: "on"` → `operation_mode: "heat"`
+
+2. **Update via HACS**
+   - HACS → Integrations → Tado CE → Update
+   - Restart Home Assistant
+   - Migration will run automatically
+
+3. **Verify Everything Works**
+   - Check you only have ONE Tado CE hub
+   - Verify all zones are visible
+   - Test manual controls
+
+### Troubleshooting Upgrade Issues
+
+**Problem: Two Tado CE Hubs After Upgrade**
+
+This happens when upgrading from v1.1.0 to v1.2.0. Fixed in v1.2.1.
+
+**Solution:**
+1. Remove BOTH integration entries (Settings → Devices & Services → Tado CE → Delete)
+2. Restart Home Assistant
+3. Re-add the integration
+
+**Problem: Missing zones_info.json Error**
+
+```
+Failed to load zone names: [Errno 2] No such file or directory: 
+'/config/custom_components/tado_ce/data/zones_info.json'
+```
+
+**Solution:**
+- This file is created automatically on first sync
+- If error persists, restart Home Assistant to trigger a full sync
+
+**Problem: All Entities Still Have "Tado CE" Prefix**
+
+This means the old integration entry is still active.
+
+**Solution:**
+1. Remove all Tado CE integration entries
+2. Restart Home Assistant
+3. Re-add the integration
+
+### Update Automations
    - Search for `tado_ce.set_temperature_offset`
    - Replace with `tado_ce.set_climate_temperature_offset`
    - Update hot water automations: `operation_mode: "on"` → `operation_mode: "heat"`

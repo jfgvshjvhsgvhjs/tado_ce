@@ -155,21 +155,81 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Migrate old entry to new version."""
-    _LOGGER.debug("Migrating Tado CE config entry from version %s", config_entry.version)
+    _LOGGER.info("Migrating Tado CE config entry from version %s", config_entry.version)
 
     if config_entry.version == 1:
-        # Version 1 -> 2: No data changes needed, just version bump
+        # Version 1 (v1.1.0) -> 2 (v1.2.0): Handle zone-based device migration
+        _LOGGER.info("Migrating from v1.1.0 to v1.2.0 format")
+        
+        # Ensure data directory exists
+        DATA_DIR.mkdir(exist_ok=True)
+        
+        # Check if zones_info.json exists, if not, trigger a full sync
+        from .const import ZONES_INFO_FILE
+        if not ZONES_INFO_FILE.exists():
+            _LOGGER.warning("zones_info.json missing - will be created on first sync")
+            # Don't fail migration - let the sync create it
+        
+        # Update to version 2
         hass.config_entries.async_update_entry(config_entry, version=2)
-        _LOGGER.info("Migration to version %s successful", config_entry.version)
+        _LOGGER.info("Migration to version 2 successful")
         return True
 
-    _LOGGER.error("Unknown config entry version %s", config_entry.version)
-    return False
+    _LOGGER.info("Config entry already at version %s, no migration needed", config_entry.version)
+    return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Tado CE from a config entry."""
     _LOGGER.warning("Tado CE: Integration loading...")
+    
+    # CRITICAL: Check for duplicate entries and remove old ones (v1.1.0 leftovers)
+    # This must be done BEFORE any setup to avoid race conditions
+    all_entries = hass.config_entries.async_entries(DOMAIN)
+    if len(all_entries) > 1:
+        _LOGGER.warning(f"Found {len(all_entries)} Tado CE entries - checking for duplicates")
+        
+        # Initialize domain data if needed
+        if DOMAIN not in hass.data:
+            hass.data[DOMAIN] = {}
+        
+        # Sort by version (descending), then by entry_id for deterministic ordering
+        entries_by_version = sorted(
+            all_entries, 
+            key=lambda e: (getattr(e, 'version', 0), e.entry_id), 
+            reverse=True
+        )
+        
+        keeper_entry_id = entries_by_version[0].entry_id
+        
+        # If current entry is NOT the one to keep, abort this setup
+        if entry.entry_id != keeper_entry_id:
+            _LOGGER.warning(
+                f"Current entry {entry.entry_id} (version {entry.version}) is duplicate. "
+                f"Aborting setup - will be removed by keeper entry."
+            )
+            return False
+        
+        # Current entry IS the keeper - remove all others
+        # Use a flag specific to THIS cleanup session to prevent duplicate work
+        cleanup_key = f'duplicate_cleanup_{keeper_entry_id}'
+        if cleanup_key not in hass.data[DOMAIN]:
+            hass.data[DOMAIN][cleanup_key] = True
+            
+            _LOGGER.info(f"Entry {keeper_entry_id} is keeper - removing {len(entries_by_version) - 1} duplicates")
+            
+            for old_entry in entries_by_version[1:]:
+                _LOGGER.warning(
+                    f"Removing duplicate entry {old_entry.entry_id} "
+                    f"(version {getattr(old_entry, 'version', 'unknown')})"
+                )
+                # Use async_create_task to avoid blocking
+                hass.async_create_task(
+                    hass.config_entries.async_remove(old_entry.entry_id)
+                )
+            
+            # Verify cleanup
+            _LOGGER.info(f"Duplicate cleanup complete. Keeper: {keeper_entry_id}")
     
     # Ensure data directory exists
     DATA_DIR.mkdir(exist_ok=True)
