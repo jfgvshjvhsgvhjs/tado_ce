@@ -1,6 +1,6 @@
 # Release Notes - v1.2.1 (Hotfix)
 
-**Release Date**: 2026-01-21  
+**Release Date**: 2026-01-22  
 **Type**: Hotfix  
 **Priority**: HIGH - Fixes critical upgrade issues from v1.1.0
 
@@ -8,22 +8,49 @@
 
 ## 🚨 Critical Fixes
 
-### Fixed: v1.1.0 → v1.2.0 Upgrade Issues
+### Fixed: Duplicate Hub Cleanup Race Condition (Issue #10)
 
-**Problem**: Users upgrading from v1.1.0 to v1.2.0 experienced:
-- Two Tado CE hubs appearing (duplicate integration entries)
-- Missing zones in the new hub
-- Error: `Failed to load zone names: zones_info.json not found`
-- Entity names not updated (still had "Tado CE" prefix)
+**Problem**: Users upgrading from v1.1.0 to v1.2.0 ended up with two Tado CE Hubs that couldn't be deleted.
 
-**Root Cause**: v1.2.0 changed the device structure (zone-based devices) but lacked proper migration logic for v1.1.0 users.
+**Root Cause**: The duplicate cleanup logic in v1.2.0 used non-blocking removal (`async_create_task`), causing a race condition where both old and new entries would set up simultaneously.
 
-**Fix**: v1.2.1 includes:
-- ✅ Enhanced migration logic in `async_migrate_entry`
-- ✅ Unique ID check to prevent duplicate integration entries
-- ✅ **Automatic duplicate cleanup on startup** (removes old v1.1.0 entries)
-- ✅ Graceful handling of missing `zones_info.json` file
-- ✅ Better logging for troubleshooting
+**Fix**: v1.2.1 uses blocking removal (`await`) to ensure old entries are fully removed before the new one continues setup.
+
+**Impact**: 
+- ✅ Automatic cleanup on upgrade from v1.1.0 → v1.2.1
+- ✅ No manual intervention needed
+- ✅ Only one hub will appear after upgrade
+
+### Fixed: Confusing Entity Names for Multi-Device Zones (Issue #11)
+
+**Problem**: Zones with multiple devices (e.g., 1 sensor + 2 valves) had duplicate entity names:
+- "Living Room Battery" (which device?)
+- "Living Room Battery" (which device?)
+- "Living Room Child Lock" (which valve?)
+
+**Root Cause**: Entity naming didn't account for multiple devices per zone.
+
+**Fix**: v1.2.1 now adds device type + index suffix when a zone has multiple devices:
+- ✅ Single device zones: Keep simple names (e.g., "Living Room Battery")
+- ✅ Multiple devices, different types: Add device type (e.g., "Living Room VA02 Battery", "Living Room RU01 Battery")
+- ✅ Multiple devices, same type: Add device type + index (e.g., "Living Room VA02 (1) Battery", "Living Room VA02 (2) Battery")
+- ✅ Applies to: Battery sensors, Connection sensors, Child Lock switches
+
+**Example**:
+```
+Before (confusing):
+- Living Room Battery
+- Living Room Battery
+- Living Room Child Lock
+- Living Room Child Lock
+
+After (clear):
+- Living Room VA02 (1) Battery
+- Living Room VA02 (2) Battery
+- Living Room RU01 Battery
+- Living Room VA02 (1) Child Lock
+- Living Room VA02 (2) Child Lock
+```
 
 ---
 
@@ -37,10 +64,10 @@
    - Handles missing `zones_info.json` gracefully (will be created on first sync)
    - Logs migration progress for troubleshooting
 
-2. **Duplicate Prevention**
-   - Config flow now uses unique ID (`tado_ce_integration`)
-   - Prevents adding multiple instances of the integration
-   - Aborts setup if integration already exists
+2. **Duplicate Cleanup** (FIXED)
+   - Uses blocking removal to prevent race conditions
+   - Automatically removes old v1.1.0 entries on startup
+   - Logs each removal step for verification
 
 3. **Better Error Handling**
    - Missing `zones_info.json` no longer blocks setup
@@ -227,9 +254,9 @@ See [DEV/V1.2.1_TEST_RESULTS.md](DEV/V1.2.1_TEST_RESULTS.md) for detailed test r
 
 ## 🙏 Credits
 
-**Issue Reporter**: [@marcovn](https://github.com/marcovn) - Thank you for the detailed bug report!
+**Issue #10** (Duplicate Hub): [@marcovn](https://github.com/marcovn), [@ChrisMarriott38](https://github.com/ChrisMarriott38), [@hapklaar](https://github.com/hapklaar) - Thank you for reporting the duplicate hub issue and providing detailed testing feedback!
 
-**Issue**: [#10 - 1.2.0 upgrade issues](https://github.com/hiall-fyi/tado_ce/issues/10)
+**Issue #11** (Multi-Device Naming): [@marcovn](https://github.com/marcovn) - Thank you for reporting the multi-device naming issue and providing valuable feedback!
 
 ---
 

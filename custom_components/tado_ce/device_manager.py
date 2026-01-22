@@ -124,3 +124,47 @@ def get_zone_type_display(zone_type: str) -> str:
         "HOT_WATER": "Hot Water Zone",
     }
     return zone_type_map.get(zone_type, "Unknown Zone")
+
+
+def get_device_name_suffix(zone_id: str, device_serial: str, device_type: str, zones_info: list) -> str:
+    """Get device name suffix for zones with multiple devices.
+    
+    When a zone has multiple physical devices (e.g., 1 sensor + 2 valves), entity names
+    need to be differentiated. This function generates an appropriate suffix.
+    
+    Args:
+        zone_id: The zone ID (e.g., "1", "4").
+        device_serial: The device serial number (e.g., "RU1234567").
+        device_type: The device type (e.g., "VA02", "RU01").
+        zones_info: The full zones_info data from zones_info.json.
+    
+    Returns:
+        str: Empty string if zone has only 1 device, otherwise a suffix like " VA02 (1)" or " RU01".
+    
+    Examples:
+        - Single device zone: "" (no suffix)
+        - Multiple devices, different types: " VA02", " RU01"
+        - Multiple devices, same type: " VA02 (1)", " VA02 (2)"
+    """
+    # Find the zone
+    zone = next((z for z in zones_info if str(z.get('id')) == str(zone_id)), None)
+    if not zone:
+        return ""
+    
+    devices = zone.get('devices', [])
+    if len(devices) <= 1:
+        return ""  # Single device - no suffix needed
+    
+    # Multiple devices - check if there are multiple of the same type
+    same_type_devices = [d for d in devices if d.get('deviceType') == device_type]
+    
+    if len(same_type_devices) > 1:
+        # Multiple devices of same type - add index
+        try:
+            index = next(i + 1 for i, d in enumerate(same_type_devices) if d.get('shortSerialNo') == device_serial)
+            return f" {device_type} ({index})"
+        except StopIteration:
+            return f" {device_type}"
+    else:
+        # Only one of this type - just add device type
+        return f" {device_type}"

@@ -139,10 +139,10 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities):
                     if serial and serial not in seen_serials:
                         # Battery sensor (if device has battery)
                         if 'batteryState' in device:
-                            sensors.append(TadoBatterySensor(zone_id, zone_name, zone_type, device))
+                            sensors.append(TadoBatterySensor(zone_id, zone_name, zone_type, device, zones_info))
                         # Connection sensor (all devices)
                         if 'connectionState' in device:
-                            sensors.append(TadoDeviceConnectionSensor(zone_id, zone_name, zone_type, device))
+                            sensors.append(TadoDeviceConnectionSensor(zone_id, zone_name, zone_type, device, zones_info))
                         seen_serials.add(serial)
     except Exception as e:
         _LOGGER.debug(f"Failed to load device info: {e}")
@@ -914,14 +914,18 @@ class TadoOverlaySensor(TadoBaseSensor):
 class TadoBatterySensor(SensorEntity):
     """Battery status sensor."""
     
-    def __init__(self, zone_id: str, zone_name: str, zone_type: str, device: dict):
+    def __init__(self, zone_id: str, zone_name: str, zone_type: str, device: dict, zones_info: list):
         self._zone_id = zone_id
         self._zone_name = zone_name
         self._zone_type = zone_type
         self._device_serial = device.get('shortSerialNo', 'unknown')
         self._device_type = device.get('deviceType', 'unknown')
         
-        self._attr_name = f"{zone_name} Battery"
+        # Import here to avoid circular dependency
+        from .device_manager import get_device_name_suffix
+        suffix = get_device_name_suffix(zone_id, self._device_serial, self._device_type, zones_info)
+        
+        self._attr_name = f"{zone_name}{suffix} Battery"
         self._attr_unique_id = f"tado_ce_{self._device_serial}_battery"
         self._attr_icon = "mdi:battery"
         self._attr_available = True
@@ -971,14 +975,18 @@ class TadoBatterySensor(SensorEntity):
 class TadoDeviceConnectionSensor(SensorEntity):
     """Device connection state sensor."""
     
-    def __init__(self, zone_id: str, zone_name: str, zone_type: str, device: dict):
+    def __init__(self, zone_id: str, zone_name: str, zone_type: str, device: dict, zones_info: list):
         self._zone_id = zone_id
         self._device_serial = device.get('shortSerialNo', 'unknown')
         self._device_type = device.get('deviceType', 'unknown')
         self._zone_name = zone_name
         self._zone_type = zone_type
         
-        self._attr_name = f"{zone_name} Connection"
+        # Import here to avoid circular dependency
+        from .device_manager import get_device_name_suffix
+        suffix = get_device_name_suffix(zone_id, self._device_serial, self._device_type, zones_info)
+        
+        self._attr_name = f"{zone_name}{suffix} Connection"
         self._attr_unique_id = f"tado_ce_{self._device_serial}_connection"
         self._attr_icon = "mdi:wifi"
         self._attr_available = True

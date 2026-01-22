@@ -11,13 +11,5 @@ custom_components/tado_ce/data/
 *.backup
 *.bak*
 
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
 # Internal documentation (private - not synced to GitHub)
 DEV/

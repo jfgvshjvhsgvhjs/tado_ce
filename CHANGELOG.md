@@ -5,21 +5,28 @@ All notable changes to Tado CE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.1] - 2026-01-21
+## [1.2.1] - 2026-01-22
 
 ### Fixed
-- **CRITICAL: v1.1.0 → v1.2.0 upgrade issues**: Fixed duplicate integration entries appearing after upgrade from v1.1.0. Added proper migration logic and unique ID to prevent multiple instances.
-- **Automatic duplicate cleanup**: Integration now automatically detects and removes duplicate entries on startup (keeps newest version).
+- **CRITICAL: Duplicate hub cleanup race condition** (Issue #10): Fixed race condition where duplicate entries from v1.1.0 upgrade couldn't be deleted. Changed from non-blocking (`async_create_task`) to blocking removal (`await`) to ensure old entries are fully removed before new one continues setup.
+- **Multi-device zone entity naming** (Issue #11): Fixed confusing entity names for zones with multiple devices (e.g., 1 sensor + 2 valves). Entity names now include device type + index suffix when needed (e.g., "Living Room VA02 (1) Battery", "Living Room VA02 (2) Battery", "Living Room RU01 Battery").
 - **Migration handling**: Enhanced `async_migrate_entry` to gracefully handle missing `zones_info.json` file during upgrade.
 - **Duplicate prevention**: Added unique ID check in config flow to prevent duplicate integration entries.
 
 ### Changed
-- **Improved migration**: Migration now logs more information and handles edge cases better.
+- **Improved duplicate cleanup**: Now uses blocking removal to prevent race conditions during upgrade.
+- **Smart entity naming**: Single-device zones keep simple names, multi-device zones get device type + index suffixes for clarity.
 - **README updates**: Added comprehensive troubleshooting section for upgrade issues.
 
 ### Notes
-- If upgrading from v1.1.0 and experiencing duplicate hubs, remove all Tado CE entries and re-add the integration.
-- Entity IDs are preserved during clean reinstall - automations will continue to work.
+- **Automatic cleanup**: Upgrading from v1.1.0 will automatically remove duplicate entries - no manual action needed.
+- **Entity IDs preserved**: Entity IDs remain unchanged - automations will continue to work.
+- **Multi-device zones**: Battery, connection, and child lock entities now have clearer names with device type + index.
+
+### Community Credits
+- **Issue #10**: @marcovn, @ChrisMarriott38, @hapklaar (duplicate hub issue)
+- **Issue #11**: @marcovn (multi-device naming feedback and testing)
+
 
 ## [1.2.0] - 2026-01-21
 

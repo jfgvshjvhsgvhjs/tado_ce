@@ -223,10 +223,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     f"Removing duplicate entry {old_entry.entry_id} "
                     f"(version {getattr(old_entry, 'version', 'unknown')})"
                 )
-                # Use async_create_task to avoid blocking
-                hass.async_create_task(
-                    hass.config_entries.async_remove(old_entry.entry_id)
-                )
+                # CRITICAL: Use await to ensure removal completes before continuing
+                # This prevents race condition where old entries continue setup
+                await hass.config_entries.async_remove(old_entry.entry_id)
+                _LOGGER.info(f"Successfully removed duplicate entry {old_entry.entry_id}")
             
             # Verify cleanup
             _LOGGER.info(f"Duplicate cleanup complete. Keeper: {keeper_entry_id}")

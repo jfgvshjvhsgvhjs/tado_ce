@@ -6,7 +6,7 @@
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.1.2-blue?style=for-the-badge&logo=home-assistant) ![Tado](https://img.shields.io/badge/Tado-V3%2FV3%2B-orange?style=for-the-badge) ![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)
 
 <!-- Status Badges -->
-![Version](https://img.shields.io/badge/Version-1.2.0-purple?style=for-the-badge) ![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=for-the-badge) ![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=for-the-badge) ![Tests](https://img.shields.io/badge/Tests-Passing-success?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.2.1-purple?style=for-the-badge) ![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=for-the-badge) ![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=for-the-badge) ![Tests](https://img.shields.io/badge/Tests-Passing-success?style=for-the-badge)
 
 <!-- Community Badges -->
 ![GitHub stars](https://img.shields.io/github/stars/hiall-fyi/tado_ce?style=for-the-badge&logo=github) ![GitHub forks](https://img.shields.io/github/forks/hiall-fyi/tado_ce?style=for-the-badge&logo=github) ![GitHub issues](https://img.shields.io/github/issues/hiall-fyi/tado_ce?style=for-the-badge&logo=github) ![GitHub last commit](https://img.shields.io/github/last-commit/hiall-fyi/tado_ce?style=for-the-badge&logo=github)
@@ -202,7 +202,7 @@ This will:
 
 ### Migration Steps
 
-**⚠️ If upgrading from v1.1.0, you may see duplicate Tado CE hubs after upgrade. This is a known issue fixed in v1.2.1.**
+**⚠️ If upgrading from v1.1.0, the integration will automatically clean up any duplicate hubs. This issue is fixed in v1.2.1.**
 
 **Recommended Upgrade Path (Clean Install):**
 
@@ -243,9 +243,11 @@ If you're upgrading to v1.2.1 or later, the integration includes automatic migra
 
 **Problem: Two Tado CE Hubs After Upgrade**
 
-This happens when upgrading from v1.1.0 to v1.2.0. Fixed in v1.2.1.
+This was an issue when upgrading from v1.1.0 to v1.2.0. **Fixed in v1.2.1** with automatic cleanup.
 
-**Solution:**
+**If you're on v1.2.1+**: The integration will automatically remove duplicate entries on startup.
+
+**If you're still on v1.2.0 with duplicates**:
 1. Remove BOTH integration entries (Settings → Devices & Services → Tado CE → Delete)
 2. Restart Home Assistant
 3. Re-add the integration

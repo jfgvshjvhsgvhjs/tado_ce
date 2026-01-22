@@ -75,7 +75,7 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities):
                     serial = device.get('shortSerialNo')
                     device_type = device.get('deviceType', 'unknown')
                     switches.append(TadoChildLockSwitch(
-                        zone_id, serial, zone_name, zone_type, device_type, device.get('childLockEnabled', False)
+                        zone_id, serial, zone_name, zone_type, device_type, device.get('childLockEnabled', False), zones_info
                     ))
     
     if switches:
@@ -329,14 +329,18 @@ class TadoEarlyStartSwitch(SwitchEntity):
 class TadoChildLockSwitch(SwitchEntity):
     """Tado CE Child Lock Switch Entity."""
     
-    def __init__(self, zone_id: str, serial: str, zone_name: str, zone_type: str, device_type: str, initial_state: bool):
+    def __init__(self, zone_id: str, serial: str, zone_name: str, zone_type: str, device_type: str, initial_state: bool, zones_info: list):
         self._zone_id = zone_id
         self._serial = serial
         self._zone_name = zone_name
         self._zone_type = zone_type
         self._device_type = device_type
         
-        self._attr_name = f"{zone_name} Child Lock"
+        # Import here to avoid circular dependency
+        from .device_manager import get_device_name_suffix
+        suffix = get_device_name_suffix(zone_id, serial, device_type, zones_info)
+        
+        self._attr_name = f"{zone_name}{suffix} Child Lock"
         self._attr_unique_id = f"tado_ce_{serial}_child_lock"
         self._attr_icon = "mdi:lock"
         self._attr_is_on = initial_state
