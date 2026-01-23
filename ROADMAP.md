@@ -19,6 +19,7 @@ Feature requests and planned improvements for Tado CE.
 ## Planned for v1.5.0
 
 - [ ] Async architecture (migrate from urllib to aiohttp)
+- [ ] Centralize all API URLs in const.py (remove hardcoded URLs from switch.py, __init__.py, tado_api.py, config_flow.py)
 
 ---
 
