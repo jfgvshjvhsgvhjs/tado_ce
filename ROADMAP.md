@@ -6,6 +6,7 @@ Feature requests and planned improvements for Tado CE.
 
 - [ ] Async architecture (migrate from urllib to aiohttp)
 - [ ] Centralize all API URLs in const.py (remove hardcoded URLs from switch.py, __init__.py, tado_api.py, config_flow.py)
+- [ ] `get_temperature_offset` service - on-demand fetch of current offset for external sensor calibration automations ([#24](https://github.com/hiall-fyi/tado_ce/issues/24), [#25](https://github.com/hiall-fyi/tado_ce/issues/25) - @pisolofin, @ohipe)
 
 ---
 
