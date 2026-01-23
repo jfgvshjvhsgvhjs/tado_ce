@@ -13,6 +13,9 @@ Feature requests and planned improvements for Tado CE.
 - [x] Cleaned up API Usage sensor (removed redundant reset attributes)
 - [x] Improve initial reset time estimation
 - [x] Logging levels cleanup (setup messages from `warning` to `debug`/`info`)
+- [x] Fix options not saving properly (weather/mobile checkboxes reverting)
+- [x] Fix Day/Night Start Hour options showing confusing checkboxes (Issue #17)
+- [x] Uniform polling mode: set Day Start Hour = Night Start Hour for 24/7 consistent polling (Issue #17)
 
 **Note**: Existing users who want to keep weather/mobile tracking will need to manually re-enable in integration options after upgrade.
 
