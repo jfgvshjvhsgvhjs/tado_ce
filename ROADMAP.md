@@ -4,11 +4,21 @@ Feature requests and planned improvements for Tado CE.
 
 ## Planned for v1.4.0
 
-- [ ] Change weather sensors default to OFF (saves 1 API call per sync)
-- [ ] Change mobile device tracking default to OFF (saves 1 API call per sync)
-- [ ] Improve initial reset time estimation
+- [x] New Device Authorization setup flow (no more SSH required - setup entirely in HA UI)
+- [x] Change weather sensors default to OFF (saves 1 API call per sync)
+- [x] Change mobile device tracking default to OFF (saves 1 API call per sync)
+- [x] API Reset sensor now uses Tado API's actual reset time (not calculated from history)
+- [x] Added `next_poll` and `current_interval_minutes` attributes to API Reset sensor
+- [x] Cleaned up API Usage sensor (removed redundant reset attributes)
+- [x] Improve initial reset time estimation
 
 **Note**: Existing users who want to keep weather/mobile tracking will need to manually re-enable in integration options after upgrade.
+
+---
+
+## Planned for v1.5.0
+
+- [ ] Async architecture (migrate from urllib to aiohttp)
 
 ---
 
