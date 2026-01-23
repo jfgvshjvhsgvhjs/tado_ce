@@ -5,6 +5,14 @@ All notable changes to Tado CE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-01-23
+
+### Fixed
+- **CRITICAL: Authentication broken after upgrade from v1.2.x** (Issue #26): Fixed missing migration path from config entry VERSION 2/3 to VERSION 4. Users upgrading from v1.2.x had entities become unavailable because the migration code only handled VERSION 1→2. Now properly migrates all versions and preserves existing refresh tokens.
+
+### Community Credits
+- **Issue #26**: @hapklaar, @mjsarfatti (authentication issue after upgrade)
+
 ## [1.4.0] - 2026-01-23
 
 ### Added

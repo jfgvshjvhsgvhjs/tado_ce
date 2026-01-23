@@ -4,6 +4,24 @@
 
 ---
 
+## v1.4.1 (2026-01-23) - Hotfix Release
+
+### Bug Reports & Issue Reporters
+
+**[@hapklaar](https://github.com/hapklaar)** - [Issue #26](https://github.com/hiall-fyi/tado_ce/issues/26)
+- First to report authentication broken after v1.2.1 → v1.4.0 upgrade
+- Quick bug report that caught this critical issue early
+
+**[@mjsarfatti](https://github.com/mjsarfatti)** - [Issue #26](https://github.com/hiall-fyi/tado_ce/issues/26)
+- Additional confirmation of the upgrade issue
+- Helped validate the problem
+
+### What Was Fixed
+
+- ✅ **Issue #26**: Authentication broken after upgrade - missing migration path from VERSION 2/3 to VERSION 4
+
+---
+
 ## v1.4.0 (2026-01-23) - Setup Simplification Release
 
 ### Feature Contributors

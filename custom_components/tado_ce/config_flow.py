@@ -9,14 +9,12 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .const import DOMAIN, CLIENT_ID, DATA_DIR, CONFIG_FILE
+from .const import (
+    DOMAIN, CLIENT_ID, DATA_DIR, CONFIG_FILE,
+    API_ENDPOINT_ME, AUTH_ENDPOINT_DEVICE, AUTH_ENDPOINT_TOKEN
+)
 
 _LOGGER = logging.getLogger(__name__)
-
-# Tado OAuth endpoints
-DEVICE_AUTH_URL = "https://login.tado.com/oauth2/device_authorize"
-TOKEN_URL = "https://login.tado.com/oauth2/token"
-ME_URL = "https://my.tado.com/api/v2/me"
 
 
 class TadoCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -69,7 +67,7 @@ class TadoCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         session = async_get_clientsession(self.hass)
         
         async with session.post(
-            DEVICE_AUTH_URL,
+            AUTH_ENDPOINT_DEVICE,
             data={
                 "client_id": CLIENT_ID,
                 "scope": "home.user offline_access"
@@ -150,7 +148,7 @@ class TadoCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             
             try:
                 async with session.post(
-                    TOKEN_URL,
+                    AUTH_ENDPOINT_TOKEN,
                     data={
                         "client_id": CLIENT_ID,
                         "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
@@ -199,7 +197,7 @@ class TadoCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         session = async_get_clientsession(self.hass)
         
         async with session.get(
-            ME_URL,
+            API_ENDPOINT_ME,
             headers={"Authorization": f"Bearer {self._access_token}"}
         ) as resp:
             if resp.status != 200:

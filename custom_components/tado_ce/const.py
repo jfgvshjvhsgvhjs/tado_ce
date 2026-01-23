@@ -14,10 +14,19 @@ MOBILE_DEVICES_FILE = DATA_DIR / "mobile_devices.json"
 HOME_STATE_FILE = DATA_DIR / "home_state.json"
 API_CALL_HISTORY_FILE = DATA_DIR / "api_call_history.json"
 
-# API
+# API Base URLs
 TADO_API_BASE = "https://my.tado.com/api/v2"
 TADO_AUTH_URL = "https://login.tado.com/oauth2"
 CLIENT_ID = "1bb50063-6b0c-4d11-bd99-387f4a91cc46"
+
+# API Endpoints (relative to TADO_API_BASE)
+API_ENDPOINT_ME = f"{TADO_API_BASE}/me"
+API_ENDPOINT_HOMES = f"{TADO_API_BASE}/homes"  # + /{home_id}
+API_ENDPOINT_DEVICES = f"{TADO_API_BASE}/devices"  # + /{serial}
+
+# Auth Endpoints
+AUTH_ENDPOINT_DEVICE = f"{TADO_AUTH_URL}/device_authorize"
+AUTH_ENDPOINT_TOKEN = f"{TADO_AUTH_URL}/token"
 
 # Default zone names (fallback)
 DEFAULT_ZONE_NAMES = {

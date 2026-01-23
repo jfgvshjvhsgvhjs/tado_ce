@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.event import async_track_time_interval
 import homeassistant.helpers.config_validation as cv
 
-from .const import DOMAIN, DATA_DIR, CONFIG_FILE, RATELIMIT_FILE, TADO_API_BASE, TADO_AUTH_URL, CLIENT_ID
+from .const import DOMAIN, DATA_DIR, CONFIG_FILE, RATELIMIT_FILE, TADO_API_BASE, TADO_AUTH_URL, CLIENT_ID, API_ENDPOINT_DEVICES
 from .config_manager import ConfigurationManager
 from .auth_manager import get_auth_manager
 
@@ -163,7 +163,7 @@ async def async_setup(hass: HomeAssistant, config: dict) -> bool:
 
 async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
     """Migrate old entry to new version."""
-    _LOGGER.info("Migrating Tado CE config entry from version %s", config_entry.version)
+    _LOGGER.info("Migrating Tado CE config entry from version %s to version 4", config_entry.version)
 
     if config_entry.version == 1:
         # Version 1 (v1.1.0) -> 2 (v1.2.0): Handle zone-based device migration
@@ -181,9 +181,48 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         # Update to version 2
         hass.config_entries.async_update_entry(config_entry, version=2)
         _LOGGER.info("Migration to version 2 successful")
+        # Fall through to continue migration to version 4
+
+    if config_entry.version in (2, 3):
+        # Version 2/3 -> 4 (v1.4.0): New device authorization flow
+        # The existing config.json with refresh_token is still valid
+        # We just need to update the config entry version
+        _LOGGER.info("Migrating from version %s to version 4 (v1.4.0)", config_entry.version)
+        
+        # Ensure data directory exists
+        DATA_DIR.mkdir(exist_ok=True)
+        
+        # Check if config.json exists with valid refresh_token
+        if CONFIG_FILE.exists():
+            try:
+                with open(CONFIG_FILE) as f:
+                    config = json.load(f)
+                
+                if config.get("refresh_token"):
+                    _LOGGER.info("Existing refresh_token found - authentication should work")
+                else:
+                    _LOGGER.warning(
+                        "No refresh_token in config.json - re-authentication may be required. "
+                        "If entities are unavailable, delete and re-add the integration."
+                    )
+            except Exception as e:
+                _LOGGER.warning(f"Could not read config.json: {e}")
+        else:
+            _LOGGER.warning(
+                "config.json not found - re-authentication required. "
+                "Delete and re-add the integration to authenticate."
+            )
+        
+        # Update to version 4
+        hass.config_entries.async_update_entry(config_entry, version=4)
+        _LOGGER.info("Migration to version 4 successful")
         return True
 
-    _LOGGER.info("Config entry already at version %s, no migration needed", config_entry.version)
+    if config_entry.version == 4:
+        _LOGGER.info("Config entry already at version 4, no migration needed")
+        return True
+
+    _LOGGER.warning("Unknown config entry version %s, attempting to continue", config_entry.version)
     return True
 
 
@@ -723,7 +762,7 @@ def _set_temperature_offset(zone_id: str, offset: float):
                         if not token:
                             return False
                         
-                        url = f"https://my.tado.com/api/v2/devices/{serial}/temperatureOffset"
+                        url = f"{API_ENDPOINT_DEVICES}/{serial}/temperatureOffset"
                         payload = {"celsius": offset}
                         
                         data = json.dumps(payload).encode()
@@ -790,7 +829,7 @@ def _identify_device(device_serial: str):
             _LOGGER.error("Failed to get access token")
             return False
         
-        url = f"https://my.tado.com/api/v2/devices/{device_serial}/identify"
+        url = f"{API_ENDPOINT_DEVICES}/{device_serial}/identify"
         req = Request(url, method="POST")
         req.add_header("Authorization", f"Bearer {token}")
         

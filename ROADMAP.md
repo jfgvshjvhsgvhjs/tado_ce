@@ -33,6 +33,11 @@ v1.4.0 supports selecting a home during setup, but only one home per integration
 
 ## Completed
 
+### v1.4.1 (2026-01-23)
+
+**Hotfix Release:**
+- [x] Fixed authentication broken after upgrade from v1.2.x (Issue #26) - missing migration path from VERSION 2/3 to VERSION 4
+
 ### v1.4.0 (2026-01-23)
 
 **Setup Simplification Release:**

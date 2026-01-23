@@ -98,18 +98,24 @@ class TadoClient:
         
         # CRITICAL: Use centralized AuthManager to prevent token rotation race conditions
         self._auth_manager = None
+        self._api_endpoint_me = None
+        self._api_endpoint_homes = None
         try:
             # Try relative import first (when used as module)
             try:
                 from .auth_manager import get_auth_manager
-                from .const import TADO_AUTH_URL, CLIENT_ID as CONST_CLIENT_ID
+                from .const import TADO_AUTH_URL, CLIENT_ID as CONST_CLIENT_ID, API_ENDPOINT_ME, API_ENDPOINT_HOMES
+                self._api_endpoint_me = API_ENDPOINT_ME
+                self._api_endpoint_homes = API_ENDPOINT_HOMES
             except ImportError:
                 # Fall back to absolute import (when used as standalone script)
                 import sys
                 import os
                 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
                 from auth_manager import get_auth_manager
-                from const import TADO_AUTH_URL, CLIENT_ID as CONST_CLIENT_ID
+                from const import TADO_AUTH_URL, CLIENT_ID as CONST_CLIENT_ID, API_ENDPOINT_ME, API_ENDPOINT_HOMES
+                self._api_endpoint_me = API_ENDPOINT_ME
+                self._api_endpoint_homes = API_ENDPOINT_HOMES
             
             self._auth_manager = get_auth_manager(CONFIG_FILE, CONST_CLIENT_ID, TADO_AUTH_URL)
             log.info("Using centralized AuthManager for token management")
@@ -533,8 +539,10 @@ class TadoClient:
         log.info("Fetching home ID from API...")
         
         try:
+            # Use centralized API endpoint if available
+            me_url = self._api_endpoint_me or "https://my.tado.com/api/v2/me"
             data, _, _ = self._http_request(
-                "https://my.tado.com/api/v2/me",
+                me_url,
                 headers={"Authorization": f"Bearer {self.access_token}"},
                 parse_ratelimit=False
             )
@@ -589,7 +597,9 @@ class TadoClient:
             self._save_config()
             log.info(f"Home ID saved to config: {home_id}")
         
-        url = f"https://my.tado.com/api/v2/homes/{home_id}/{endpoint}"
+        # Use centralized API endpoint if available
+        homes_base = self._api_endpoint_homes or "https://my.tado.com/api/v2/homes"
+        url = f"{homes_base}/{home_id}/{endpoint}"
         
         # Auto-detect call type from endpoint if not provided
         if call_type is None:
