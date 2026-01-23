@@ -45,7 +45,7 @@ The official Home Assistant Tado integration doesn't show your actual API usage 
 
 1. **Real-time rate limit tracking** - See exactly how many API calls you've used
 2. **Dynamic limit detection** - Automatically detects your actual limit (100/5000/20000)
-3. **Reset time tracking** - Know when your quota resets (rolling 24h window)
+3. **Reset time tracking** - Know when your quota resets (from Tado API headers)
 4. **Smart day/night polling** - More frequent during day, less at night
 5. **Lightweight design** - Minimal API calls, maximum functionality
 
@@ -83,7 +83,7 @@ The official Home Assistant Tado integration doesn't show your actual API usage 
 | Feature | Description |
 |---------|-------------|
 | 📊 **Real API Rate Limit** | Actual usage from Tado API headers, not estimates |
-| 🔄 **Rolling 24h Reset** | Automatically detects when your rate limit resets |
+| 🔄 **Reset Time from API** | Automatically detects when your rate limit resets |
 | ⚡ **Smart Day/Night Polling** | More frequent during day, less at night to save API calls |
 | 🏢 **Zone-Based Devices** | Each zone appears as separate device for better organization (v1.2.0) |
 | 🏷️ **Improved Entity Names** | Cleaner names without "Tado CE" prefix for zone entities (v1.2.0) |
