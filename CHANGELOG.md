@@ -2,8 +2,6 @@
 
 All notable changes to Tado CE will be documented in this file.
 
-For detailed technical changes, see [DEV/CHANGELOG_DETAILED.md](DEV/CHANGELOG_DETAILED.md).
-
 ## [1.5.4] - 2026-01-24
 
 - Fixed all AC control issues (modes, fan, swing, status display)
