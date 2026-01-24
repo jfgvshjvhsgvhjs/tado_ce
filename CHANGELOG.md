@@ -5,6 +5,26 @@ All notable changes to Tado CE will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-01-24
+
+### Fixed
+- **CRITICAL: OAuth flow "invalid flow specified" error** (Issue #36 - @mkruiver, Discussion #35 - @harryvandervossen): Fixed config flow failing for new users during setup. The `async_show_progress` polling mechanism had race conditions causing authorization to fail even after successful Tado login. Replaced with simpler manual check approach - users now click Submit after authorizing on Tado's website.
+
+### Added
+- **Re-authenticate option in UI** (Issue #34 - @jeverley, @hapklaar): Added reconfigure flow to re-authenticate without SSH. Go to Settings → Devices & Services → Tado CE → three dots menu → Reconfigure. No more need to SSH into Home Assistant to fix authentication issues after upgrades.
+
+### Changed
+- **Simplified OAuth flow**: Removed automatic polling spinner. Users now:
+  1. Click link to authorize on Tado website
+  2. Complete authorization (see "Successfully connected")
+  3. Return to HA and click Submit
+  4. If not yet authorized, shows helpful error message to try again
+
+### Community Credits
+- **Issue #34**: @jeverley, @hapklaar (re-authenticate UI request)
+- **Issue #36**: @mkruiver (OAuth flow bug report)
+- **Discussion #35**: @harryvandervossen (detailed OAuth flow feedback)
+
 ## [1.5.0] - 2026-01-24
 
 > **🚀 Major Code Quality Release**: This release represents a near-complete rewrite of the codebase with async architecture, comprehensive null-safe patterns, and centralized data loading. The focus is on stability, maintainability, and future-proofing.

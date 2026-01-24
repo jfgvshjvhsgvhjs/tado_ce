@@ -7,15 +7,26 @@
       },
       "authorize": {
         "title": "Authorize Tado",
-        "description": "Please visit the link below to authorize Tado CE:\n\n**[Click here to authorize]({url})**\n\nOr go to `https://login.tado.com/device` and enter code: **{code}**\n\nAfter authorizing in your browser, click Submit."
-      },
-      "poll": {
-        "title": "Waiting for Authorization",
-        "description": "Please authorize in your browser.\n\nIf a new tab didn't open, visit:\n**[Click here to authorize]({url})**\n\nCode: **{code}**"
+        "description": "**Step 1:** Click the link below to open Tado login:\n\n**[Click here to authorize]({url})**\n\nOr go to `https://login.tado.com/device` and enter code: **{code}**\n\n**Step 2:** Log in to your Tado account and authorize the connection.\n\n**Step 3:** After you see \"Successfully connected\" on Tado's website, click Submit below."
       },
       "select_home": {
         "title": "Select Home",
         "description": "Multiple Tado homes found. Please select which home to use.",
+        "data": {
+          "home": "Home"
+        }
+      },
+      "reconfigure": {
+        "title": "Re-authenticate Tado CE",
+        "description": "Click Submit to start re-authentication. This will refresh your Tado credentials without removing the integration."
+      },
+      "reconfigure_authorize": {
+        "title": "Authorize Tado",
+        "description": "**Step 1:** Click the link below to open Tado login:\n\n**[Click here to authorize]({url})**\n\nOr go to `https://login.tado.com/device` and enter code: **{code}**\n\n**Step 2:** Log in to your Tado account and authorize the connection.\n\n**Step 3:** After you see \"Successfully connected\" on Tado's website, click Submit below."
+      },
+      "reconfigure_select_home": {
+        "title": "Select Home",
+        "description": "Your previous home is no longer available. Please select a new home.",
         "data": {
           "home": "Home"
         }
@@ -26,12 +37,15 @@
     },
     "abort": {
       "already_configured": "Tado CE is already configured",
-      "timeout": "Authorization timed out. Please try again.",
+      "timeout": "Authorization expired. Please try again.",
       "authorization_failed": "Authorization failed. Please try again.",
-      "no_homes": "No Tado homes found for this account."
+      "no_homes": "No Tado homes found for this account.",
+      "reconfigure_successful": "Re-authentication successful! Your new credentials have been saved."
     },
     "error": {
-      "cannot_connect": "Failed to connect to Tado. Please check your internet connection."
+      "cannot_connect": "Failed to connect to Tado. Please check your internet connection.",
+      "auth_pending": "Authorization not yet complete. Please authorize on Tado's website first, then click Submit again.",
+      "authorization_failed": "Authorization failed. Please try again from the beginning."
     }
   },
   "options": {

@@ -32,7 +32,7 @@ class TadoCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._access_token: str | None = None
         self._refresh_token: str | None = None
         self._homes: list[dict] = []
-        self._poll_task = None
+        self._check_count: int = 0
 
     @staticmethod
     @callback
@@ -87,10 +87,26 @@ class TadoCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 raise Exception("No device code in response")
 
     async def async_step_authorize(self, user_input: dict[str, Any] | None = None):
-        """Show authorization URL for user to click."""
+        """Show authorization URL and wait for user to authorize."""
+        errors = {}
+        
         if user_input is not None:
-            # User clicked Submit, start polling
-            return await self.async_step_poll()
+            # User clicked Submit - check if they've authorized
+            self._check_count += 1
+            _LOGGER.debug(f"Checking authorization status (attempt {self._check_count})")
+            
+            result = await self._check_authorization()
+            
+            if result == "success":
+                _LOGGER.info("Authorization successful!")
+                return await self.async_step_select_home()
+            elif result == "pending":
+                # Still waiting - show form again with hint
+                errors["base"] = "auth_pending"
+            elif result == "expired":
+                return self.async_abort(reason="timeout")
+            else:
+                errors["base"] = "authorization_failed"
 
         return self.async_show_form(
             step_id="authorize",
@@ -99,98 +115,56 @@ class TadoCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "url": self._verify_url,
                 "code": self._user_code,
             },
+            errors=errors,
         )
 
-    async def async_step_poll(self, user_input: dict[str, Any] | None = None):
-        """Poll for authorization completion."""
-        # Start polling task if not already running
-        if self._poll_task is None:
-            self._poll_task = self.hass.async_create_task(
-                self._poll_for_authorization()
-            )
-        
-        # Check if task is already done
-        if self._poll_task.done():
-            return self.async_show_progress_done(next_step_id="poll_done")
-        
-        # Show progress spinner with task
-        return self.async_show_progress(
-            step_id="poll",
-            progress_action="poll",
-            progress_task=self._poll_task,
-        )
-
-    async def async_step_poll_done(self, user_input: dict[str, Any] | None = None):
-        """Handle completion of polling task."""
-        try:
-            result = self._poll_task.result()
-            if result == "success":
-                return await self.async_step_select_home()
-            elif result == "timeout":
-                return self.async_abort(reason="timeout")
-            else:
-                return self.async_abort(reason="authorization_failed")
-        except Exception as e:
-            _LOGGER.error(f"Poll task error: {e}")
-            return self.async_abort(reason="authorization_failed")
-
-    async def _poll_for_authorization(self) -> str:
-        """Background task to poll for authorization."""
+    async def _check_authorization(self) -> str:
+        """Check if user has completed authorization."""
         session = async_get_clientsession(self.hass)
-        max_attempts = self._expires_in // self._interval
         
-        _LOGGER.debug(f"Starting poll for authorization, max_attempts={max_attempts}, interval={self._interval}")
-        
-        for attempt in range(max_attempts):
-            await asyncio.sleep(self._interval)
-            
-            _LOGGER.debug(f"Poll attempt {attempt + 1}/{max_attempts}")
-            
-            try:
-                async with session.post(
-                    AUTH_ENDPOINT_TOKEN,
-                    data={
-                        "client_id": CLIENT_ID,
-                        "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-                        "device_code": self._device_code
-                    }
-                ) as resp:
-                    _LOGGER.debug(f"Poll response status: {resp.status}")
+        try:
+            async with session.post(
+                AUTH_ENDPOINT_TOKEN,
+                data={
+                    "client_id": CLIENT_ID,
+                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                    "device_code": self._device_code
+                }
+            ) as resp:
+                _LOGGER.debug(f"Authorization check response status: {resp.status}")
+                
+                if resp.status == 200:
+                    data = await resp.json()
+                    self._access_token = data.get("access_token")
+                    self._refresh_token = data.get("refresh_token")
                     
-                    if resp.status == 200:
-                        data = await resp.json()
-                        self._access_token = data.get("access_token")
-                        self._refresh_token = data.get("refresh_token")
-                        
-                        if self._access_token and self._refresh_token:
-                            _LOGGER.info("Authorization successful!")
-                            await self._fetch_homes()
-                            return "success"
+                    if self._access_token and self._refresh_token:
+                        await self._fetch_homes()
+                        return "success"
+                    return "error"
+                
+                elif resp.status == 400:
+                    data = await resp.json()
+                    error = data.get("error", "")
+                    _LOGGER.debug(f"Authorization check error: {error}")
                     
-                    elif resp.status == 400:
-                        data = await resp.json()
-                        error = data.get("error", "")
-                        _LOGGER.debug(f"Poll error response: {error}")
-                        
-                        if error == "authorization_pending":
-                            continue
-                        elif error == "slow_down":
-                            self._interval += 5
-                            _LOGGER.debug(f"Slowing down, new interval: {self._interval}")
-                            continue
-                        elif error == "expired_token":
-                            _LOGGER.debug("Device code expired")
-                            return "timeout"
-                        else:
-                            _LOGGER.error(f"Authorization error: {error}")
-                            return "error"
-                            
-            except Exception as e:
-                _LOGGER.error(f"Poll error: {e}")
-                continue
-        
-        _LOGGER.debug("Authorization timed out")
-        return "timeout"
+                    if error == "authorization_pending":
+                        return "pending"
+                    elif error == "slow_down":
+                        # Wait a bit before allowing next check
+                        await asyncio.sleep(2)
+                        return "pending"
+                    elif error == "expired_token":
+                        return "expired"
+                    else:
+                        _LOGGER.error(f"Authorization error: {error}")
+                        return "error"
+                else:
+                    return "error"
+                    
+        except Exception as e:
+            _LOGGER.error(f"Authorization check error: {e}")
+            return "error"
 
     async def _fetch_homes(self):
         """Fetch available homes from Tado API."""
@@ -256,13 +230,123 @@ class TadoCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data={"home_id": str(home_id)},
         )
 
-    async def async_step_timeout(self, user_input: dict[str, Any] | None = None):
-        """Handle authorization timeout."""
-        return self.async_abort(reason="timeout")
+    # ========== Reconfigure Flow (Re-authenticate) ==========
+    
+    async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None):
+        """Handle reconfiguration - allows re-authentication."""
+        errors = {}
+        
+        if user_input is not None:
+            try:
+                await self._request_device_code()
+                return await self.async_step_reconfigure_authorize()
+            except Exception as e:
+                _LOGGER.error(f"Failed to start re-authorization: {e}")
+                errors["base"] = "cannot_connect"
+        
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema({}),
+            errors=errors,
+        )
 
-    async def async_step_error(self, user_input: dict[str, Any] | None = None):
-        """Handle authorization error."""
-        return self.async_abort(reason="authorization_failed")
+    async def async_step_reconfigure_authorize(self, user_input: dict[str, Any] | None = None):
+        """Show authorization URL for reconfigure flow."""
+        errors = {}
+        
+        if user_input is not None:
+            self._check_count += 1
+            _LOGGER.debug(f"Checking re-authorization status (attempt {self._check_count})")
+            
+            result = await self._check_authorization()
+            
+            if result == "success":
+                _LOGGER.info("Re-authorization successful!")
+                return await self.async_step_reconfigure_confirm()
+            elif result == "pending":
+                errors["base"] = "auth_pending"
+            elif result == "expired":
+                return self.async_abort(reason="timeout")
+            else:
+                errors["base"] = "authorization_failed"
+        
+        return self.async_show_form(
+            step_id="reconfigure_authorize",
+            data_schema=vol.Schema({}),
+            description_placeholders={
+                "url": self._verify_url,
+                "code": self._user_code,
+            },
+            errors=errors,
+        )
+
+    async def async_step_reconfigure_confirm(self, user_input: dict[str, Any] | None = None):
+        """Save new credentials and finish reconfigure."""
+        import json
+        
+        # Get the existing config entry
+        reconfigure_entry = self._get_reconfigure_entry()
+        home_id = reconfigure_entry.data.get("home_id")
+        
+        # If we have homes from the new auth, verify the home still exists
+        if self._homes:
+            home_exists = any(str(h["id"]) == str(home_id) for h in self._homes)
+            if not home_exists:
+                # Home no longer exists, let user select a new one
+                return await self.async_step_reconfigure_select_home()
+        
+        # Save new credentials
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+        
+        config = {
+            "home_id": str(home_id),
+            "refresh_token": self._refresh_token
+        }
+        
+        with open(CONFIG_FILE, 'w') as f:
+            json.dump(config, f, indent=2)
+        
+        _LOGGER.info(f"Re-authentication successful, saved new credentials for home ID: {home_id}")
+        
+        # Finish reconfigure - this updates the existing entry
+        return self.async_abort(reason="reconfigure_successful")
+
+    async def async_step_reconfigure_select_home(self, user_input: dict[str, Any] | None = None):
+        """Handle home selection during reconfigure (if original home no longer exists)."""
+        import json
+        
+        if not self._homes:
+            return self.async_abort(reason="no_homes")
+        
+        if user_input is not None:
+            home_id = user_input["home"]
+            
+            # Save new credentials with new home
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            
+            config = {
+                "home_id": str(home_id),
+                "refresh_token": self._refresh_token
+            }
+            
+            with open(CONFIG_FILE, 'w') as f:
+                json.dump(config, f, indent=2)
+            
+            _LOGGER.info(f"Re-authentication successful with new home ID: {home_id}")
+            
+            return self.async_abort(reason="reconfigure_successful")
+        
+        home_options = {
+            str(home["id"]): home.get("name", f"Home {home['id']}")
+            for home in self._homes
+        }
+        
+        return self.async_show_form(
+            step_id="reconfigure_select_home",
+            data_schema=vol.Schema({
+                vol.Required("home"): vol.In(home_options)
+            }),
+        )
 
 
 class TadoCEOptionsFlow(config_entries.OptionsFlow):

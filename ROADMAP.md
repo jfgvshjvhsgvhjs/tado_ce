@@ -2,9 +2,15 @@
 
 Feature requests and planned improvements for Tado CE.
 
-## Planned for v1.5.1
+## v1.5.1 (2026-01-24) ✅ Released
 
-- [ ] **Re-authenticate option in UI** - Add reconfigure flow to re-authenticate without SSH ([#34](https://github.com/hiall-fyi/tado_ce/issues/34) - @jeverley, @hapklaar)
+- [x] **Fix OAuth flow "invalid flow specified" error** - New users unable to complete setup ([#36](https://github.com/hiall-fyi/tado_ce/issues/36) - @mkruiver)
+- [x] **Re-authenticate option in UI** - Add reconfigure flow to re-authenticate without SSH ([#34](https://github.com/hiall-fyi/tado_ce/issues/34) - @jeverley, @hapklaar)
+
+---
+
+## Planned for v1.6.0
+
 - [ ] **Better upgrade path testing** - Release beta versions for community testing before major releases
 
 ---
