@@ -4,6 +4,50 @@
 
 ---
 
+## v1.5.2 (2026-01-24) - Data Storage Fix
+
+### Bug Reports & Issue Reporters
+
+**[@jeverley](https://github.com/jeverley)** - [Issue #34](https://github.com/hiall-fyi/tado_ce/issues/34)
+- Reported token loss after HACS upgrade
+- Identified that data directory was being overwritten
+
+**[@hapklaar](https://github.com/hapklaar)** - [Issue #34](https://github.com/hiall-fyi/tado_ce/issues/34)
+- Confirmed token loss issue
+- Helped validate the problem
+
+**[@wrowlands3](https://github.com/wrowlands3)** - [Issue #34](https://github.com/hiall-fyi/tado_ce/issues/34)
+- Additional confirmation of the upgrade issue
+
+### What Was Fixed
+
+- ✅ **Issue #34**: Token loss on HACS upgrade - data directory moved to `/config/.storage/tado_ce/`
+
+---
+
+## v1.5.1 (2026-01-24) - OAuth & Re-auth Fix
+
+### Bug Reports & Issue Reporters
+
+**[@mkruiver](https://github.com/mkruiver)** - [Issue #36](https://github.com/hiall-fyi/tado_ce/issues/36)
+- Reported OAuth flow "invalid flow specified" error for new users
+
+**[@jeverley](https://github.com/jeverley)** - [Issue #34](https://github.com/hiall-fyi/tado_ce/issues/34)
+- Requested re-authenticate option in UI
+
+**[@hapklaar](https://github.com/hapklaar)** - [Issue #34](https://github.com/hiall-fyi/tado_ce/issues/34)
+- Supported re-authenticate feature request
+
+**[@harryvandervossen](https://github.com/harryvandervossen)** - [Discussion #35](https://github.com/hiall-fyi/tado_ce/discussions/35)
+- Provided detailed OAuth flow feedback
+
+### What Was Fixed
+
+- ✅ **Issue #36**: OAuth flow error - simplified to manual check approach
+- ✅ **Issue #34**: Re-authenticate option added via reconfigure flow
+
+---
+
 ## v1.5.0 (2026-01-24) - Async & Stability Release
 
 ### Bug Reports & Issue Reporters
