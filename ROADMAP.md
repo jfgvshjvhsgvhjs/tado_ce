@@ -7,6 +7,8 @@ Feature requests and planned improvements for Tado CE.
 - [ ] **Better upgrade path testing** - Release beta versions for community testing before major releases
 - [ ] **Deprecate tado_api.py** - Move sync functions to `__init__.py` or new `sync.py`, remove legacy CLI authentication tool (replaced by in-app OAuth flow since v1.4.0)
 - [ ] **API Usage sensor immediate update** - Update rate limit display after immediate refresh (currently only updates on full sync)
+- [ ] **Fix `climate.set_temperature` with `hvac_mode`** - Handle `hvac_mode` parameter in `async_set_temperature()` for Node-RED and automation compatibility ([#31](https://github.com/hiall-fyi/tado_ce/issues/31) - @neonsp)
+- [ ] **Fix climate entities not updating consistently** - Debounced refresh for multi-zone updates, Resume All Schedules now triggers refresh ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @hapklaar)
 
 ---
 
