@@ -78,7 +78,7 @@ Full climate, AC, hot water control with timer support, geofencing, presence det
 
 ## Prerequisites
 
-- Home Assistant 2024.1 or later (tested on 2026.1.2)
+- Home Assistant 2024.1 or later (tested on 2026.1.3)
 - Tado account with V2/V3/V3+ devices
 
 ---
