@@ -3,6 +3,7 @@ from pathlib import Path
 import os
 
 DOMAIN = "tado_ce"
+MANUFACTURER = "Joe Yiu (@hiall-fyi)"
 
 # Data directory (persistent storage)
 # v1.5.2: Moved from custom_components/tado_ce/data/ to .storage/tado_ce/

@@ -29,7 +29,7 @@ _LOGGER = logging.getLogger(__name__)
 class TadoCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Tado CE."""
 
-    VERSION = 5
+    VERSION = 6
 
     def __init__(self):
         """Initialize the config flow."""
@@ -50,10 +50,14 @@ class TadoCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return TadoCEOptionsFlow(config_entry)
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None):
-        """Handle the initial step - start device authorization."""
-        await self.async_set_unique_id("tado_ce_integration")
-        self._abort_if_unique_id_configured()
-
+        """Handle the initial step - start device authorization.
+        
+        Note: unique_id is set later in _create_entry() after we know the home_id.
+        This allows for multi-home support in future versions.
+        """
+        # v1.7.0: Don't set unique_id here - we don't know home_id yet
+        # unique_id will be set in _create_entry() as tado_ce_{home_id}
+        
         errors = {}
 
         if user_input is not None:
@@ -222,6 +226,10 @@ class TadoCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Create the config entry and save credentials."""
         import json
         
+        # v1.7.0: Set unique_id based on home_id for multi-home support
+        await self.async_set_unique_id(f"tado_ce_{home_id}")
+        self._abort_if_unique_id_configured()
+        
         DATA_DIR.mkdir(parents=True, exist_ok=True)
         
         config = {
@@ -384,7 +392,7 @@ class TadoCEOptionsFlow(config_entries.OptionsFlow):
             # Flatten features section
             if 'features' in user_input:
                 features = user_input['features']
-                for key in ['weather_enabled', 'mobile_devices_enabled', 'offset_enabled']:
+                for key in ['weather_enabled', 'mobile_devices_enabled', 'home_state_sync_enabled', 'offset_enabled']:
                     if key in features:
                         processed_input[key] = features[key]
             
@@ -450,6 +458,7 @@ class TadoCEOptionsFlow(config_entries.OptionsFlow):
                     vol.Schema({
                         vol.Optional('weather_enabled', default=options.get('weather_enabled', False)): BooleanSelector(),
                         vol.Optional('mobile_devices_enabled', default=options.get('mobile_devices_enabled', False)): BooleanSelector(),
+                        vol.Optional('home_state_sync_enabled', default=options.get('home_state_sync_enabled', True)): BooleanSelector(),
                         vol.Optional('offset_enabled', default=options.get('offset_enabled', False)): BooleanSelector(),
                     }),
                     {"collapsed": True},

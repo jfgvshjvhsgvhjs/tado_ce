@@ -8,10 +8,9 @@ from homeassistant.const import UnitOfTemperature, PERCENTAGE, EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 
-from .const import DOMAIN, ZONES_FILE, ZONES_INFO_FILE, RATELIMIT_FILE, WEATHER_FILE, MOBILE_DEVICES_FILE, API_CALL_HISTORY_FILE, DEFAULT_ZONE_NAMES, CONFIG_FILE, DATA_DIR
+from .const import DOMAIN, ZONES_FILE, ZONES_INFO_FILE, RATELIMIT_FILE, WEATHER_FILE, MOBILE_DEVICES_FILE, API_CALL_HISTORY_FILE, DEFAULT_ZONE_NAMES, CONFIG_FILE, DATA_DIR, TADO_AUTH_URL, CLIENT_ID
 from .device_manager import get_hub_device_info, get_zone_device_info
 from .auth_manager import get_auth_manager
-from .const import TADO_AUTH_URL, CLIENT_ID
 from .data_loader import (
     load_zones_file, load_zones_info_file, load_weather_file,
     load_config_file, load_ratelimit_file, load_api_call_history_file,

@@ -492,18 +492,54 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         # Data migration already handled at the top of this function
         _LOGGER.info("Migration step -> v5 complete")
 
+    if initial_version < 6:
+        # Version 5 -> 6 (v1.7.0): Change unique_id from tado_ce_integration to tado_ce_{home_id}
+        _LOGGER.info("=== Migration: -> v6 ===")
+        _LOGGER.info("Migrating to v1.7.0 format (unique_id change for multi-home support)")
+        
+        # Get home_id from config entry data or config.json
+        home_id = config_entry.data.get("home_id")
+        
+        if not home_id and CONFIG_FILE.exists():
+            try:
+                with open(CONFIG_FILE) as f:
+                    config = json.load(f)
+                    home_id = config.get("home_id")
+                    _LOGGER.info(f"  Got home_id from config.json: {home_id}")
+            except Exception as e:
+                _LOGGER.warning(f"  Could not read home_id from config.json: {e}")
+        
+        if home_id:
+            new_unique_id = f"tado_ce_{home_id}"
+            _LOGGER.info(f"  Updating unique_id: tado_ce_integration -> {new_unique_id}")
+            
+            # Update the config entry's unique_id
+            # Note: This is done via async_update_entry with the new unique_id
+            hass.config_entries.async_update_entry(
+                config_entry,
+                unique_id=new_unique_id
+            )
+            _LOGGER.info(f"  unique_id updated to: {new_unique_id}")
+        else:
+            _LOGGER.warning(
+                "  Could not determine home_id for unique_id migration. "
+                "unique_id will remain as tado_ce_integration until re-authentication."
+            )
+        
+        _LOGGER.info("Migration step -> v6 complete")
+
     # Update to final version (only once, at the end)
-    if initial_version < 5:
-        hass.config_entries.async_update_entry(config_entry, version=5)
+    if initial_version < 6:
+        hass.config_entries.async_update_entry(config_entry, version=6)
         _LOGGER.info(
             "=== Migration Complete ===\n"
             f"  Initial version: {initial_version}\n"
-            f"  Final version: 5\n"
+            f"  Final version: 6\n"
             f"  CONFIG_FILE exists: {CONFIG_FILE.exists()}\n"
             f"  DATA_DIR exists: {DATA_DIR.exists()}"
         )
     else:
-        _LOGGER.info("Config entry already at version 5, no migration needed")
+        _LOGGER.info("Config entry already at version 6, no migration needed")
     
     return True
 
@@ -743,13 +779,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             mobile_devices_enabled = config_manager.get_mobile_devices_enabled()
             mobile_devices_frequent_sync = config_manager.get_mobile_devices_frequent_sync()
             offset_enabled = config_manager.get_offset_enabled()
+            home_state_sync_enabled = config_manager.get_home_state_sync_enabled()
             
             success = await client.async_sync(
                 quick=not do_full_sync,
                 weather_enabled=weather_enabled,
                 mobile_devices_enabled=mobile_devices_enabled,
                 mobile_devices_frequent_sync=mobile_devices_frequent_sync,
-                offset_enabled=offset_enabled
+                offset_enabled=offset_enabled,
+                home_state_sync_enabled=home_state_sync_enabled
             )
             
             if success:

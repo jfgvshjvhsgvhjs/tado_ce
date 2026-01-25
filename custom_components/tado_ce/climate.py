@@ -72,23 +72,6 @@ HA_TO_TADO_FAN = {
     FAN_HIGH: "LEVEL5",
 }
 
-# Swing mapping - Tado has multiple positions, HA only has ON/OFF
-TADO_TO_HA_SWING = {
-    "ON": SWING_ON,
-    "OFF": SWING_OFF,
-    # Any specific position counts as ON
-    "UP": SWING_ON,
-    "MID_UP": SWING_ON,
-    "MID": SWING_ON,
-    "MID_DOWN": SWING_ON,
-    "DOWN": SWING_ON,
-    "LEFT": SWING_ON,
-    "MID_LEFT": SWING_ON,
-    "MID_RIGHT": SWING_ON,
-    "RIGHT": SWING_ON,
-}
-
-
 def get_zone_names():
     """Load zone names from API data."""
     return dl_get_zone_names()
@@ -343,6 +326,7 @@ class TadoClimate(ClimateEntity):
         
         if await client.set_presence_lock(state):
             self._attr_preset_mode = preset_mode
+            self.async_write_ha_state()  # Optimistic update
             await self._async_trigger_immediate_refresh("preset_mode_change")
 
     async def async_set_temperature(self, **kwargs):
@@ -368,6 +352,8 @@ class TadoClimate(ClimateEntity):
         if await client.set_zone_overlay(self._zone_id, setting, termination):
             self._attr_target_temperature = temperature
             self._attr_hvac_mode = HVACMode.HEAT
+            self._overlay_type = "MANUAL"
+            self.async_write_ha_state()  # Optimistic update
             _LOGGER.info(f"Set {self._zone_name} to {temperature}°C")
             await self._async_trigger_immediate_refresh("temperature_change")
 
@@ -386,6 +372,8 @@ class TadoClimate(ClimateEntity):
             
             if await client.set_zone_overlay(self._zone_id, setting, termination):
                 self._attr_hvac_mode = HVACMode.HEAT
+                self._overlay_type = "MANUAL"
+                self.async_write_ha_state()  # Optimistic update
                 await self._async_trigger_immediate_refresh("hvac_mode_change")
                 
         elif hvac_mode == HVACMode.OFF:
@@ -397,11 +385,16 @@ class TadoClimate(ClimateEntity):
             
             if await client.set_zone_overlay(self._zone_id, setting, termination):
                 self._attr_hvac_mode = HVACMode.OFF
+                self._attr_hvac_action = HVACAction.OFF
+                self._overlay_type = "MANUAL"
+                self.async_write_ha_state()  # Optimistic update
                 await self._async_trigger_immediate_refresh("hvac_mode_change")
                 
         elif hvac_mode == HVACMode.AUTO:
             if await client.delete_zone_overlay(self._zone_id):
                 self._attr_hvac_mode = HVACMode.AUTO
+                self._overlay_type = None
+                self.async_write_ha_state()  # Optimistic update
                 await self._async_trigger_immediate_refresh("hvac_mode_change")
     
     async def _async_trigger_immediate_refresh(self, reason: str):
@@ -695,6 +688,8 @@ class TadoACClimate(ClimateEntity):
                 self._attr_target_temperature = temperature
             if hvac_mode is not None:
                 self._attr_hvac_mode = hvac_mode
+            self._overlay_type = "MANUAL"
+            self.async_write_ha_state()  # Optimistic update
             await self._async_trigger_immediate_refresh("temperature_change")
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
@@ -710,16 +705,23 @@ class TadoACClimate(ClimateEntity):
             
             if await client.set_zone_overlay(self._zone_id, setting, termination):
                 self._attr_hvac_mode = HVACMode.OFF
+                self._attr_hvac_action = HVACAction.OFF
+                self._overlay_type = "MANUAL"
+                self.async_write_ha_state()  # Optimistic update
                 await self._async_trigger_immediate_refresh("hvac_mode_change")
                 
         elif hvac_mode == HVACMode.AUTO:
             if await client.delete_zone_overlay(self._zone_id):
                 self._attr_hvac_mode = HVACMode.AUTO
+                self._overlay_type = None
+                self.async_write_ha_state()  # Optimistic update
                 await self._async_trigger_immediate_refresh("hvac_mode_change")
         else:
             tado_mode = HA_TO_TADO_HVAC_MODE.get(hvac_mode, 'COOL')
             if await self._async_set_ac_overlay(mode=tado_mode):
                 self._attr_hvac_mode = hvac_mode
+                self._overlay_type = "MANUAL"
+                self.async_write_ha_state()  # Optimistic update
                 await self._async_trigger_immediate_refresh("hvac_mode_change")
 
     async def async_set_fan_mode(self, fan_mode: str):
@@ -727,6 +729,7 @@ class TadoACClimate(ClimateEntity):
         tado_fan = HA_TO_TADO_FAN.get(fan_mode, 'AUTO')
         if await self._async_set_ac_overlay(fan_level=tado_fan):
             self._attr_fan_mode = fan_mode
+            self.async_write_ha_state()  # Optimistic update
             await self._async_trigger_immediate_refresh("fan_mode_change")
 
     async def async_set_swing_mode(self, swing_mode: str):
@@ -753,6 +756,7 @@ class TadoACClimate(ClimateEntity):
         
         if await self._async_set_ac_overlay(vertical_swing=v_swing, horizontal_swing=h_swing):
             self._attr_swing_mode = swing_mode
+            self.async_write_ha_state()  # Optimistic update
             await self._async_trigger_immediate_refresh("swing_mode_change")
     
     async def _async_trigger_immediate_refresh(self, reason: str):

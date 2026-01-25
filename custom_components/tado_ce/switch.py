@@ -9,7 +9,7 @@ from homeassistant.helpers.entity import DeviceInfo
 
 from .const import (
     DOMAIN, ZONES_INFO_FILE, CONFIG_FILE, MOBILE_DEVICES_FILE,
-    TADO_API_BASE, TADO_AUTH_URL, CLIENT_ID, API_ENDPOINT_DEVICES
+    API_ENDPOINT_DEVICES
 )
 from .device_manager import get_hub_device_info, get_zone_device_info
 from .data_loader import load_zones_info_file, load_config_file

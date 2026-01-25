@@ -14,7 +14,7 @@ from typing import Optional
 
 from homeassistant.helpers.entity import DeviceInfo
 
-from .const import DOMAIN, CONFIG_FILE
+from .const import DOMAIN, CONFIG_FILE, MANUFACTURER
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -123,7 +123,7 @@ def get_hub_device_info() -> DeviceInfo:
     return DeviceInfo(
         identifiers={(DOMAIN, "tado_ce_hub")},
         name="Tado CE Hub",
-        manufacturer="Joe Yiu (@hiall-fyi)",
+        manufacturer=MANUFACTURER,
         model="Tado CE Integration",
         sw_version=_get_cached_version(),
     )
@@ -149,7 +149,7 @@ def get_zone_device_info(zone_id: str, zone_name: str, zone_type: str) -> Device
     return DeviceInfo(
         identifiers={(DOMAIN, f"tado_ce_zone_{zone_id}")},
         name=zone_name,
-        manufacturer="Joe Yiu (@hiall-fyi)",
+        manufacturer=MANUFACTURER,
         model=model,
         via_device=(DOMAIN, "tado_ce_hub"),
     )

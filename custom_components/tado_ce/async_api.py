@@ -241,12 +241,16 @@ class TadoAsyncClient:
             try:
                 last_reset = datetime.fromisoformat(last_reset_utc.replace('Z', '+00:00'))
                 next_reset = last_reset + timedelta(hours=24)
+                
+                # If next_reset is in the past, add 24h until it's in the future
+                while next_reset <= now_utc:
+                    next_reset += timedelta(hours=24)
+                
                 seconds_until_reset = int((next_reset - now_utc).total_seconds())
                 
                 if seconds_until_reset > 0:
                     calculated_reset_seconds = seconds_until_reset
-                else:
-                    _LOGGER.debug(f"Expected reset time passed ({abs(seconds_until_reset)}s ago), waiting for detection")
+                    _LOGGER.debug(f"Using last_reset_utc: next reset at {next_reset.strftime('%H:%M')} UTC")
             except Exception as e:
                 _LOGGER.debug(f"Failed to calculate reset from last_reset_utc: {e}")
         
@@ -751,7 +755,8 @@ class TadoAsyncClient:
         weather_enabled: bool = True,
         mobile_devices_enabled: bool = True,
         mobile_devices_frequent_sync: bool = False,
-        offset_enabled: bool = False
+        offset_enabled: bool = False,
+        home_state_sync_enabled: bool = True
     ) -> bool:
         """Perform async data sync from Tado API.
         
@@ -764,6 +769,7 @@ class TadoAsyncClient:
             mobile_devices_enabled: Whether to fetch mobile devices.
             mobile_devices_frequent_sync: If True, fetch mobile devices on quick sync too.
             offset_enabled: Whether to fetch temperature offsets.
+            home_state_sync_enabled: Whether to fetch home state (for away mode).
             
         Returns:
             True if sync succeeded, False otherwise.
@@ -790,11 +796,12 @@ class TadoAsyncClient:
                     await self._save_json_file(WEATHER_FILE, weather_data)
                     _LOGGER.debug("Weather data saved")
             
-            # Always fetch home state (needed for away mode)
-            home_state = await self.api_call("state")
-            if home_state:
-                await self._save_json_file(HOME_STATE_FILE, home_state)
-                _LOGGER.debug(f"Home state saved (presence: {home_state.get('presence')})")
+            # Fetch home state if enabled (needed for away mode)
+            if home_state_sync_enabled:
+                home_state = await self.api_call("state")
+                if home_state:
+                    await self._save_json_file(HOME_STATE_FILE, home_state)
+                    _LOGGER.debug(f"Home state saved (presence: {home_state.get('presence')})")
             
             # Fetch mobile devices on quick sync if frequent sync enabled
             if quick and mobile_devices_enabled and mobile_devices_frequent_sync:

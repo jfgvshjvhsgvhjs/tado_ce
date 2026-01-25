@@ -2,41 +2,76 @@
 
 Feature requests and planned improvements for Tado CE.
 
-## Planned for v1.7.0
+## v1.7.0 - Multi-Home Preparation ✅
 
-- [ ] **Change integration unique_id** - From `tado_ce_integration` to `tado_ce_{home_id}` (preparation for multi-home support)
-- [ ] **Auto-migration** - Existing entries automatically updated, no user action needed
-- [ ] **Backwards compatible** - Single home users unaffected
-- [ ] **Optimistic state updates** - Immediate UI feedback when changing modes/temperature, with rollback on API failure ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @neonsp)
+Foundation work for future multi-home support, plus performance improvements.
+
+**User-Facing Features:**
+- [x] **Optimistic state updates** - Immediate UI feedback when changing modes/temperature, with rollback on API failure ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @neonsp)
+- [x] **Optional homeState sync** - Add option to disable homeState API call, saves 50% sync calls for users not using Tado geofencing ([#31](https://github.com/hiall-fyi/tado_ce/issues/31) - @neonsp)
+- [x] **Fix options float validation** - HA NumberSelector returns float, config_manager now converts to int properly
+
+**Internal (Multi-Home Prep):**
+- [x] **Change integration unique_id** - From `tado_ce_integration` to `tado_ce_{home_id}`
+- [x] **Auto-migration** - Existing entries automatically updated, no user action needed
+- [x] **Backwards compatible** - Single home users unaffected
+- [x] **Code cleanup** - Removed unused imports and deprecated mappings
 
 ---
 
-## Multi-Home Support Roadmap (v1.8.0 → v2.0.0)
+## v1.8.0 - Data Files Migration + Schedule Calendar
 
-Gradual migration path to support multiple Tado homes simultaneously.
+Per-home data files plus heating schedule visualization.
 
-### v1.8.0 - Data Files Migration
-
+**Multi-Home Migration:**
 - [ ] **Per-home data files** - `config_{home_id}.json`, `zones_{home_id}.json`, etc.
 - [ ] **Auto-migration** - Existing files renamed with home_id suffix
 - [ ] **Backwards compatible** - Falls back to legacy filenames if needed
 
-### v1.9.0 - Hub Device Migration
+**Schedule Calendar:**
+- [ ] **Heating Schedule Calendar** - `calendar.tado_ce_heating_schedule` on Hub device showing all zones' schedules
+- [ ] **Read-only** - Displays Tado app schedules, fetched once on startup
+- [ ] **Optional feature** - Enable in Options (~2-8 API calls per zone on startup)
+- [ ] **Stored locally** - Schedules cached in `schedules.json`, no repeated API calls
 
+---
+
+## v1.9.0 - Hub Device Migration + Smart Heating
+
+Hub device identifier migration plus intelligent heating features.
+
+**Multi-Home Migration:**
 - [ ] **Change hub device identifier** - From `tado_ce_hub` to `tado_ce_hub_{home_id}`
 - [ ] **Device registry migration** - Existing hub device updated automatically
 - [ ] **Entity IDs stable** - No entity ID changes for existing users
 
-### v2.0.0 - Multiple Homes Enabled
+**Smart Heating:**
+- [ ] **Room-aware Early Start** - Consider room thermal characteristics, not just outside temperature ([Discussion #33](https://github.com/hiall-fyi/tado_ce/discussions/33))
+- [ ] **Predictive Heating** - Use weather forecast to optimize heating schedule
+- [ ] **Heating Analytics** - Track heating patterns, efficiency metrics, cost estimates
+- [ ] **Smart Boost** - One-tap boost with intelligent duration based on current vs target temperature
 
+---
+
+## v2.0.0 - Multiple Homes Enabled + Polish
+
+Major release enabling full multi-home support.
+
+**Multi-Home Support:**
 - [ ] **Allow multiple integration entries** - Each entry for a different home
+- [ ] **Multi-home setup guide** - Documentation for users with multiple properties
+
+**Setup & Polish:**
+- [ ] **Auto-assign Areas** - Suggest HA Areas based on zone names during setup ([#14](https://github.com/hiall-fyi/tado_ce/issues/14))
+- [ ] **Setup wizard improvements** - Streamlined flow with better error messages
 - [ ] **Delete tado_api.py** - File deprecated in v1.6.0, now fully removed
-- [ ] **Better upgrade path testing** - Release beta versions for community testing
-- [ ] **Documentation update** - Multi-home setup guide
 
-**Note**: Entity IDs remain stable throughout migration if entity `unique_id` is unchanged.
+**Local API (Experimental):**
+- [ ] **Local-first, cloud-fallback** - Use local API when available, fall back to cloud
+- [ ] **Hybrid mode** - Configurable per-feature (e.g., local for reads, cloud for writes)
+- [ ] **Community testing program** - Beta channel for local API testing
 
-**Migration Design**: All migrations are cumulative - users can upgrade directly from any version (e.g., v1.6.0 → v2.0.0) and all intermediate migrations will be applied automatically. Each migration step is idempotent (safe to run multiple times).
+**Note**: Local API requires community help to test across different Tado hardware versions. See [Discussion #29](https://github.com/hiall-fyi/tado_ce/discussions/29).
 
 ---
 
@@ -44,19 +79,17 @@ Gradual migration path to support multiple Tado homes simultaneously.
 
 - Air Comfort sensors (humidity comfort level)
 - Boost button entity
-- Auto-assign devices to Areas during setup ([#14](https://github.com/hiall-fyi/tado_ce/issues/14))
 - Apply for HACS default repository inclusion
 - Max Flow Temperature control (requires OpenTherm, [#15](https://github.com/hiall-fyi/tado_ce/issues/15))
 - Combi boiler mode - hide timers/schedules for on-demand hot water ([#15](https://github.com/hiall-fyi/tado_ce/issues/15))
 
-### Local API Support ([Discussion #29](https://github.com/hiall-fyi/tado_ce/discussions/29))
+---
 
-Investigating local API to reduce cloud dependency and API call usage.
+## Migration Design
 
-- **TadoLocal project**: https://github.com/AmpScm/TadoLocal (early stage)
-- **Goal**: Local-first, cloud-fallback approach
-- **Benefits**: Works without subscription (100 calls/day limit), faster response, works when cloud is down
-- **Status**: Gathering community feedback - react/comment on Discussion #29 if interested!
+All migrations are cumulative - users can upgrade directly from any version (e.g., v1.6.0 → v2.0.0) and all intermediate migrations will be applied automatically. Each migration step is idempotent (safe to run multiple times).
+
+Entity IDs remain stable throughout migration if entity `unique_id` is unchanged.
 
 ---
 

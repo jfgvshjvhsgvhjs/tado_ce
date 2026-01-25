@@ -231,6 +231,14 @@ class ConfigurationManager:
         """
         return self._options.get('offset_enabled', DEFAULT_OFFSET_ENABLED)
     
+    def get_home_state_sync_enabled(self) -> bool:
+        """Check if home state sync is enabled (for away mode switch and climate presets).
+        
+        Returns:
+            True if home state should be synced, False to save API calls
+        """
+        return self._options.get('home_state_sync_enabled', True)
+    
     def get_test_mode_enabled(self) -> bool:
         """Check if Test Mode is enabled (enforce 100 API limit).
         
@@ -246,6 +254,9 @@ class ConfigurationManager:
             Hour (0-23) when day period starts
         """
         hour = self._options.get('day_start_hour', DEFAULT_DAY_START_HOUR)
+        # Convert float to int (HA options may return float)
+        if isinstance(hour, float):
+            hour = int(hour)
         # Validate range
         if not isinstance(hour, int) or hour < 0 or hour > 23:
             _LOGGER.warning(f"Invalid day_start_hour: {hour}, using default {DEFAULT_DAY_START_HOUR}")
@@ -259,6 +270,9 @@ class ConfigurationManager:
             Hour (0-23) when night period starts
         """
         hour = self._options.get('night_start_hour', DEFAULT_NIGHT_START_HOUR)
+        # Convert float to int (HA options may return float)
+        if isinstance(hour, float):
+            hour = int(hour)
         # Validate range
         if not isinstance(hour, int) or hour < 0 or hour > 23:
             _LOGGER.warning(f"Invalid night_start_hour: {hour}, using default {DEFAULT_NIGHT_START_HOUR}")
@@ -304,6 +318,9 @@ class ConfigurationManager:
             Number of days to retain history (0 = keep forever, default 14)
         """
         days = self._options.get('api_history_retention_days', DEFAULT_API_HISTORY_RETENTION_DAYS)
+        # Convert float to int (HA options may return float)
+        if isinstance(days, float):
+            days = int(days)
         # Validate range
         if not isinstance(days, int) or days < 0 or days > 365:
             _LOGGER.warning(f"Invalid api_history_retention_days: {days}, using default {DEFAULT_API_HISTORY_RETENTION_DAYS}")
@@ -317,6 +334,9 @@ class ConfigurationManager:
             Timer duration in minutes (5-1440, default 60)
         """
         duration = self._options.get('hot_water_timer_duration', DEFAULT_HOT_WATER_TIMER_DURATION)
+        # Convert float to int (HA options may return float)
+        if isinstance(duration, float):
+            duration = int(duration)
         # Validate range
         if not isinstance(duration, int) or duration < MIN_TIMER_DURATION or duration > MAX_TIMER_DURATION:
             _LOGGER.warning(f"Invalid hot_water_timer_duration: {duration}, using default {DEFAULT_HOT_WATER_TIMER_DURATION}")
@@ -334,8 +354,10 @@ class ConfigurationManager:
         """
         delay = self._options.get('refresh_debounce_seconds', DEFAULT_REFRESH_DEBOUNCE_SECONDS)
         
-        # Handle both int (from NumberSelector) and string (legacy) input
-        if isinstance(delay, str):
+        # Handle both int (from NumberSelector), float, and string (legacy) input
+        if isinstance(delay, float):
+            delay = int(delay)
+        elif isinstance(delay, str):
             if not delay.strip():
                 return DEFAULT_REFRESH_DEBOUNCE_SECONDS
             try:

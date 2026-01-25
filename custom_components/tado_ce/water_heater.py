@@ -12,8 +12,7 @@ from homeassistant.const import STATE_OFF, UnitOfTemperature
 from homeassistant.core import HomeAssistant
 
 from .const import (
-    DOMAIN, ZONES_FILE, ZONES_INFO_FILE, CONFIG_FILE,
-    TADO_API_BASE, TADO_AUTH_URL, CLIENT_ID
+    DOMAIN, ZONES_FILE, ZONES_INFO_FILE, CONFIG_FILE
 )
 from .device_manager import get_zone_device_info
 from .data_loader import load_zones_file, load_zones_info_file, load_config_file
@@ -187,6 +186,8 @@ class TadoWaterHeater(WaterHeaterEntity):
                 success = await client.delete_zone_overlay(self._zone_id)
                 if success:
                     self._attr_current_operation = STATE_AUTO
+                    self._overlay_type = None
+                    self.async_write_ha_state()  # Optimistic update
                     _LOGGER.info(f"Resumed schedule for {self._zone_name}")
                     await self._async_trigger_immediate_refresh("hot_water_auto")
                     break
@@ -196,6 +197,8 @@ class TadoWaterHeater(WaterHeaterEntity):
                 success = await self._async_set_timer(duration, None)
                 if success:
                     self._attr_current_operation = STATE_HEAT
+                    self._overlay_type = "TIMER"
+                    self.async_write_ha_state()  # Optimistic update
                     await self._async_trigger_immediate_refresh("hot_water_heat")
                     break
             elif operation_mode == STATE_OFF:
@@ -203,6 +206,8 @@ class TadoWaterHeater(WaterHeaterEntity):
                 success = await self._async_turn_off()
                 if success:
                     self._attr_current_operation = STATE_OFF
+                    self._overlay_type = "MANUAL"
+                    self.async_write_ha_state()  # Optimistic update
                     await self._async_trigger_immediate_refresh("hot_water_off")
                     break
             
@@ -360,5 +365,7 @@ class TadoWaterHeater(WaterHeaterEntity):
         if success:
             self._attr_target_temperature = temperature
             self._attr_current_operation = STATE_HEAT
+            self._overlay_type = "MANUAL"
+            self.async_write_ha_state()  # Optimistic update
             _LOGGER.info(f"Set {self._zone_name} temperature to {temperature}°C")
             await self._async_trigger_immediate_refresh("hot_water_temperature")
