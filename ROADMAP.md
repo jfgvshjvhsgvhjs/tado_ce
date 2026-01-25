@@ -2,16 +2,6 @@
 
 Feature requests and planned improvements for Tado CE.
 
-## Planned for v1.6.2
-
-- [x] **Comprehensive timezone fixes** - All timestamps now stored in UTC, displayed in Home Assistant's configured timezone ([#46](https://github.com/hiall-fyi/tado_ce/issues/46) - @hutten0)
-- [x] **Fix API call history not recording** - `async_api.py` was missing call tracking (v1.6.0 regression)
-- [x] **Fix blocking I/O warnings** - `api_call_tracker.py` now uses async file I/O via `run_in_executor`
-- [x] **Fix `get_call_history` bug** - Naive vs aware datetime comparison was silently failing
-- [x] **Fix thread leak on integration reload** - ThreadPoolExecutor now properly shutdown via `cleanup_executor()`
-
----
-
 ## Planned for v1.7.0
 
 - [ ] **Optimistic state updates** - Immediate UI feedback when changing modes/temperature, with rollback on API failure ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @neonsp)
@@ -74,6 +64,14 @@ Investigating local API to reduce cloud dependency and API call usage.
 ---
 
 ## Completed
+
+### v1.6.2 (2026-01-25)
+
+- [x] **Comprehensive timezone fixes** - All timestamps now stored in UTC, displayed in Home Assistant's configured timezone ([#46](https://github.com/hiall-fyi/tado_ce/issues/46) - @hutten0)
+- [x] **Fix API call history not recording** - `async_api.py` was missing call tracking (v1.6.0 regression)
+- [x] **Fix blocking I/O warnings** - `api_call_tracker.py` now uses async file I/O via `run_in_executor`
+- [x] **Fix `get_call_history` bug** - Naive vs aware datetime comparison was silently failing
+- [x] **Fix thread leak on integration reload** - ThreadPoolExecutor now properly shutdown via `cleanup_executor()`
 
 ### v1.6.1 (2026-01-25)
 
