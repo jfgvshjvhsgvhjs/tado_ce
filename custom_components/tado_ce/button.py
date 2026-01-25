@@ -4,6 +4,7 @@ from homeassistant.components.button import ButtonEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import EntityCategory
 
+from .const import DOMAIN
 from .device_manager import get_zone_device_info, get_hub_device_info
 from .config_manager import ConfigurationManager
 from .data_loader import load_zones_info_file
@@ -18,6 +19,10 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities):
     """Set up Tado CE buttons from a config entry."""
     _LOGGER.debug("Tado CE button: Setting up...")
     zones_info = await hass.async_add_executor_job(load_zones_info_file)
+    
+    # Get config manager to check if schedule calendar is enabled
+    config_manager = hass.data.get(DOMAIN, {}).get('config_manager')
+    schedule_calendar_enabled = config_manager.get_schedule_calendar_enabled() if config_manager else False
     
     buttons = []
     
@@ -36,6 +41,12 @@ async def async_setup_entry(hass: HomeAssistant, entry, async_add_entities):
                     buttons.append(
                         TadoWaterHeaterTimerButton(hass, zone_id, zone_name, duration)
                     )
+            
+            # Create refresh schedule button for heating zones (only if calendar enabled)
+            if zone_type == 'HEATING' and schedule_calendar_enabled:
+                buttons.append(
+                    TadoRefreshScheduleButton(hass, zone_id, zone_name)
+                )
     
     if buttons:
         async_add_entities(buttons, True)
@@ -172,3 +183,78 @@ class TadoWaterHeaterTimerButton(ButtonEntity):
             error_msg = f"Failed to set {self._duration}min timer for {self._zone_name}: {error_type}: {str(e)}"
             _LOGGER.error(f"Timer button failed - {error_msg}")
             raise HomeAssistantError(error_msg) from e
+
+
+class TadoRefreshScheduleButton(ButtonEntity):
+    """Button to refresh schedule for a specific zone."""
+    
+    def __init__(self, hass: HomeAssistant, zone_id: str, zone_name: str):
+        """Initialize the button.
+        
+        Args:
+            hass: Home Assistant instance
+            zone_id: Zone ID
+            zone_name: Zone name
+        """
+        self.hass = hass
+        self._zone_id = zone_id
+        self._zone_name = zone_name
+        
+        self._attr_name = f"{zone_name} Refresh Schedule"
+        self._attr_unique_id = f"tado_ce_{zone_id}_refresh_schedule"
+        self._attr_device_info = get_zone_device_info(zone_id, zone_name, "HEATING")
+        self._attr_entity_category = EntityCategory.CONFIG
+        self._attr_icon = "mdi:calendar-refresh"
+    
+    async def async_press(self) -> None:
+        """Handle button press - refresh schedule for this zone."""
+        from .async_api import get_async_client
+        from .calendar import SCHEDULES_FILE
+        import json
+        
+        _LOGGER.info(f"Refresh Schedule button pressed for {self._zone_name} (zone {self._zone_id})")
+        
+        client = get_async_client(self.hass)
+        
+        try:
+            # Fetch fresh schedule from API
+            schedule_data = await client.get_zone_schedule(self._zone_id)
+            
+            if not schedule_data:
+                _LOGGER.warning(f"No schedule data returned for {self._zone_name}")
+                return
+            
+            # Load existing schedules
+            def _load_schedules():
+                if SCHEDULES_FILE.exists():
+                    with open(SCHEDULES_FILE) as f:
+                        return json.load(f)
+                return {}
+            
+            schedules = await self.hass.async_add_executor_job(_load_schedules)
+            
+            # Update this zone's schedule
+            schedules[self._zone_id] = {
+                "name": self._zone_name,
+                "type": schedule_data.get("type", "ONE_DAY"),
+                "blocks": schedule_data.get("blocks", {}),
+            }
+            
+            # Save back to file
+            def _save_schedules():
+                SCHEDULES_FILE.parent.mkdir(parents=True, exist_ok=True)
+                with open(SCHEDULES_FILE, 'w') as f:
+                    json.dump(schedules, f, indent=2)
+            
+            await self.hass.async_add_executor_job(_save_schedules)
+            
+            _LOGGER.info(f"Schedule refreshed for {self._zone_name}")
+            
+            # Fire event to notify calendar entity to update
+            self.hass.bus.async_fire(
+                f"{DOMAIN}_schedule_updated",
+                {"zone_id": self._zone_id, "zone_name": self._zone_name}
+            )
+            
+        except Exception as e:
+            _LOGGER.error(f"Failed to refresh schedule for {self._zone_name}: {e}")
