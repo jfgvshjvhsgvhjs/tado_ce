@@ -76,11 +76,12 @@ def is_daytime(config_manager: ConfigurationManager) -> bool:
     return day_start <= hour < night_start
 
 
-def get_polling_interval(config_manager: ConfigurationManager) -> int:
+def get_polling_interval(config_manager: ConfigurationManager, cached_ratelimit: dict | None = None) -> int:
     """Get polling interval based on configuration and API rate limit.
     
     Args:
         config_manager: Configuration manager with polling settings
+        cached_ratelimit: Pre-loaded ratelimit data (to avoid blocking I/O in async context)
         
     Returns:
         Polling interval in minutes
@@ -106,7 +107,12 @@ def get_polling_interval(config_manager: ConfigurationManager) -> int:
         if config_manager.get_test_mode_enabled():
             effective_limit = 100
             _LOGGER.info("Tado CE: Test Mode enabled - using 100 call limit")
+        elif cached_ratelimit is not None:
+            # Use pre-loaded data (async-safe)
+            effective_limit = cached_ratelimit.get("limit")
         elif RATELIMIT_FILE.exists():
+            # Fallback: sync read (only for non-async callers)
+            # WARNING: This will trigger blocking I/O warning if called from async context
             with open(RATELIMIT_FILE) as f:
                 data = json.load(f)
                 effective_limit = data.get("limit")
@@ -169,10 +175,17 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
     
     v1.5.3: Added comprehensive debug logging for upgrade troubleshooting.
     If upgrade fails, users can share logs to help diagnose issues.
+    
+    v1.6.0: Fixed cumulative migration - uses `< X` pattern instead of `== X`
+    to ensure users jumping multiple versions (e.g., v1 -> v5) run ALL
+    intermediate migrations correctly.
     """
+    # Store initial version for logging (version may change during migration)
+    initial_version = config_entry.version
+    
     _LOGGER.info(
         "=== Tado CE Migration Start ===\n"
-        f"  Current version: {config_entry.version}\n"
+        f"  Current version: {initial_version}\n"
         f"  Target version: 5\n"
         f"  Entry ID: {config_entry.entry_id}\n"
         f"  Entry data: {config_entry.data}"
@@ -242,7 +255,12 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
                 pass  # Log file is not critical
         _LOGGER.info("Data directory migration complete")
 
-    if config_entry.version == 1:
+    # v1.6.0: Cumulative migration using `< X` pattern
+    # This ensures users jumping multiple versions (e.g., v1 -> v5) run ALL migrations
+    # Previous `== X` pattern could miss migrations if config_entry.version wasn't
+    # updated in-place after async_update_entry()
+    
+    if initial_version < 2:
         # Version 1 (v1.1.0) -> 2 (v1.2.0): Handle zone-based device migration
         _LOGGER.info("=== Migration: v1 -> v2 ===")
         _LOGGER.info("Migrating from v1.1.0 to v1.2.0 format")
@@ -261,14 +279,11 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
         else:
             _LOGGER.info("  zones_info.json exists")
         
-        # Update to version 2
-        hass.config_entries.async_update_entry(config_entry, version=2)
-        _LOGGER.info("Migration to version 2 successful")
-        # Fall through to continue migration to version 4
+        _LOGGER.info("Migration step v1 -> v2 complete")
 
-    if config_entry.version in (2, 3):
+    if initial_version < 4:
         # Version 2/3 -> 4 (v1.4.0): New device authorization flow
-        _LOGGER.info(f"=== Migration: v{config_entry.version} -> v4 ===")
+        _LOGGER.info(f"=== Migration: v{initial_version} -> v4 ===")
         _LOGGER.info("Migrating to v1.4.0 format (device authorization)")
         
         # Ensure data directory exists
@@ -305,38 +320,29 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
                 "Delete and re-add the integration to authenticate."
             )
         
-        # Update to version 4, then fall through to version 5 migration
-        hass.config_entries.async_update_entry(config_entry, version=4)
-        _LOGGER.info("Migration to version 4 successful")
-        # Fall through to version 5 migration
+        _LOGGER.info("Migration step -> v4 complete")
 
-    if config_entry.version == 4:
+    if initial_version < 5:
         # Version 4 -> 5 (v1.5.2): Data directory moved to .storage/tado_ce/
-        _LOGGER.info("=== Migration: v4 -> v5 ===")
+        _LOGGER.info("=== Migration: -> v5 ===")
         _LOGGER.info("Migrating to v1.5.2 format (new data directory)")
         
         # Data migration already handled at the top of this function
-        # Just update the version
+        _LOGGER.info("Migration step -> v5 complete")
+
+    # Update to final version (only once, at the end)
+    if initial_version < 5:
         hass.config_entries.async_update_entry(config_entry, version=5)
-        _LOGGER.info("Migration to version 5 successful")
-        
-        # Final state check
         _LOGGER.info(
             "=== Migration Complete ===\n"
+            f"  Initial version: {initial_version}\n"
             f"  Final version: 5\n"
             f"  CONFIG_FILE exists: {CONFIG_FILE.exists()}\n"
             f"  DATA_DIR exists: {DATA_DIR.exists()}"
         )
-        return True
-
-    if config_entry.version == 5:
+    else:
         _LOGGER.info("Config entry already at version 5, no migration needed")
-        return True
-
-    _LOGGER.warning(
-        f"=== Unknown Version ===\n"
-        f"  Unknown config entry version {config_entry.version}, attempting to continue"
-    )
+    
     return True
 
 
@@ -483,9 +489,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     cancel_interval = [None]
     last_full_sync = [None]
     
-    def schedule_next_sync():
-        """Schedule next sync with dynamic interval."""
-        new_interval = get_polling_interval(config_manager)
+    # Cache for ratelimit data (loaded async to avoid blocking I/O)
+    cached_ratelimit = [None]
+    
+    async def async_load_ratelimit():
+        """Load ratelimit data asynchronously."""
+        if RATELIMIT_FILE.exists():
+            def read_file():
+                with open(RATELIMIT_FILE) as f:
+                    return json.load(f)
+            try:
+                cached_ratelimit[0] = await hass.async_add_executor_job(read_file)
+            except Exception:
+                cached_ratelimit[0] = None
+        else:
+            cached_ratelimit[0] = None
+    
+    async def async_schedule_next_sync():
+        """Schedule next sync with dynamic interval (async-safe)."""
+        # Load ratelimit data asynchronously
+        await async_load_ratelimit()
+        
+        new_interval = get_polling_interval(config_manager, cached_ratelimit[0])
         
         if new_interval != current_interval[0]:
             time_period = "day" if is_daytime(config_manager) else "night"
@@ -530,7 +555,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                             "Polling paused until quota resets."
                         )
                         # Re-schedule to check again later
-                        schedule_next_sync()
+                        await async_schedule_next_sync()
                         return
             except Exception as e:
                 _LOGGER.error(f"Failed to check Test Mode limit: {e}")
@@ -575,7 +600,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             _LOGGER.error(f"Tado CE sync ERROR: {e}")
         
         # Re-schedule with potentially new interval (day/night change)
-        schedule_next_sync()
+        await async_schedule_next_sync()
     
     # Initial sync (only if config exists)
     _LOGGER.info(f"Tado CE: Checking config file at {CONFIG_FILE}, exists={CONFIG_FILE.exists()}")
@@ -586,7 +611,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     else:
         # Still schedule polling even without config
         _LOGGER.warning(f"Tado CE: Config file not found at {CONFIG_FILE}, scheduling polling only")
-        schedule_next_sync()
+        await async_schedule_next_sync()
         _LOGGER.info("Tado CE: Polling scheduled")
     
     # Forward setup to platforms

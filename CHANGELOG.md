@@ -2,10 +2,12 @@
 
 All notable changes to Tado CE will be documented in this file.
 
-## [Unreleased - 1.6.0]
+## [1.6.0] - 2026-01-25
 
 - Deprecated `tado_api.py` - sync now uses native async API (faster, no subprocess overhead)
 - Removed subprocess dependency for polling (cleaner architecture)
+- Fixed cumulative migration bug - users upgrading across multiple versions now run ALL migrations correctly
+- Fixed blocking I/O warning in `get_polling_interval` (async-safe ratelimit loading)
 - Fixed `climate.set_temperature` ignoring `hvac_mode` parameter (Node-RED/automation compatibility)
 - Fixed climate entities not updating consistently when changing multiple zones
 - Fixed Resume All Schedules button not refreshing dashboard

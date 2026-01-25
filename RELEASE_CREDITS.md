@@ -4,7 +4,7 @@
 
 ---
 
-## v1.6.0 (Unreleased) - Refresh & Automation Fixes
+## v1.6.0 (2026-01-25) - Refresh & Automation Fixes
 
 ### Bug Reports & Issue Reporters
 
