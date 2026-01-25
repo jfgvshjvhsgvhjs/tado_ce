@@ -42,6 +42,8 @@ Gradual migration path to support multiple Tado homes simultaneously.
 
 **Note**: Entity IDs remain stable throughout migration if entity `unique_id` is unchanged.
 
+**Migration Design**: All migrations are cumulative - users can upgrade directly from any version (e.g., v1.6.0 → v2.0.0) and all intermediate migrations will be applied automatically. Each migration step is idempotent (safe to run multiple times).
+
 ---
 
 ## Considering (Need More Feedback)
