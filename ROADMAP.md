@@ -4,6 +4,9 @@ Feature requests and planned improvements for Tado CE.
 
 ## Planned for v1.7.0
 
+- [ ] **Change integration unique_id** - From `tado_ce_integration` to `tado_ce_{home_id}` (preparation for multi-home support)
+- [ ] **Auto-migration** - Existing entries automatically updated, no user action needed
+- [ ] **Backwards compatible** - Single home users unaffected
 - [ ] **Optimistic state updates** - Immediate UI feedback when changing modes/temperature, with rollback on API failure ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @neonsp)
 
 ---
@@ -12,19 +15,13 @@ Feature requests and planned improvements for Tado CE.
 
 Gradual migration path to support multiple Tado homes simultaneously.
 
-### v1.8.0 - Unique ID Migration
-
-- [ ] **Change integration unique_id** - From `tado_ce_integration` to `tado_ce_{home_id}`
-- [ ] **Auto-migration** - Existing entries automatically updated, no user action needed
-- [ ] **Backwards compatible** - Single home users unaffected
-
-### v1.9.0 - Data Files Migration
+### v1.8.0 - Data Files Migration
 
 - [ ] **Per-home data files** - `config_{home_id}.json`, `zones_{home_id}.json`, etc.
 - [ ] **Auto-migration** - Existing files renamed with home_id suffix
 - [ ] **Backwards compatible** - Falls back to legacy filenames if needed
 
-### v1.10.0 - Hub Device Migration
+### v1.9.0 - Hub Device Migration
 
 - [ ] **Change hub device identifier** - From `tado_ce_hub` to `tado_ce_hub_{home_id}`
 - [ ] **Device registry migration** - Existing hub device updated automatically
