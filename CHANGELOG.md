@@ -2,6 +2,15 @@
 
 All notable changes to Tado CE will be documented in this file.
 
+## [Unreleased - 1.6.0]
+
+- Deprecated `tado_api.py` - sync now uses native async API (faster, no subprocess overhead)
+- Removed subprocess dependency for polling (cleaner architecture)
+- Fixed `climate.set_temperature` ignoring `hvac_mode` parameter (Node-RED/automation compatibility)
+- Fixed climate entities not updating consistently when changing multiple zones
+- Fixed Resume All Schedules button not refreshing dashboard
+- Added debounced refresh mechanism for batch updates (multiple zone changes = 1 API call)
+
 ## [1.5.5] - 2026-01-24
 
 - Fixed AC Auto mode turning off AC (removed confusing AUTO option, use Heat/Cool instead)

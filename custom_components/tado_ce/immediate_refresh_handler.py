@@ -39,10 +39,15 @@ class ImmediateRefreshHandler:
         # CRITICAL FIX: Per-entity rate limiting instead of global only
         self._last_refresh_per_entity: dict[str, datetime] = {}
         self._global_last_refresh: Optional[datetime] = None
-        self._min_global_interval = 10  # Global minimum (seconds)
+        self._min_global_interval = 2  # Reduced from 10s to allow multi-zone updates
         self._min_per_entity_interval = 2  # Per-entity minimum (seconds)
         self._consecutive_failures = 0
         self._max_backoff_interval = 300  # Max 5 minutes backoff
+        
+        # Debounce mechanism for batch updates
+        self._pending_refresh: bool = False
+        self._debounce_task: Optional[object] = None
+        self._debounce_delay = 1.0  # Wait 1 second for more changes before refreshing
     
     async def _get_rate_limit_info(self) -> dict:
         """Get current rate limit information.
@@ -165,6 +170,8 @@ class ImmediateRefreshHandler:
     async def trigger_refresh(self, entity_id: str, reason: str = "state_change"):
         """Trigger immediate refresh for an entity.
         
+        Uses debouncing to batch multiple rapid changes into a single refresh.
+        
         Args:
             entity_id: Entity ID that triggered the refresh
             reason: Reason for refresh (for logging)
@@ -173,11 +180,7 @@ class ImmediateRefreshHandler:
             _LOGGER.debug(f"Entity {entity_id} does not trigger immediate refresh")
             return
         
-        if not self.can_refresh_now(entity_id):
-            _LOGGER.debug(f"Skipping immediate refresh for {entity_id} (backoff active)")
-            return
-        
-        # Check API quota before refreshing
+        # Check API quota before scheduling refresh
         can_refresh, quota_reason = await self._check_quota_available()
         if not can_refresh:
             _LOGGER.warning(
@@ -186,31 +189,60 @@ class ImmediateRefreshHandler:
             )
             return
         
-        _LOGGER.info(f"Triggering immediate refresh for {entity_id} (reason: {reason})")
+        _LOGGER.debug(f"Scheduling debounced refresh for {entity_id} (reason: {reason})")
         
-        try:
-            # Fetch only zoneStates using async API (1 API call instead of 2-3)
-            await self._async_fetch_zone_states()
+        # Cancel existing debounce task if any
+        if self._debounce_task is not None:
+            self._debounce_task.cancel()
+            self._debounce_task = None
+        
+        # Mark refresh as pending
+        self._pending_refresh = True
+        self._last_refresh_per_entity[entity_id] = datetime.now()
+        
+        # Schedule debounced refresh
+        async def _debounced_refresh():
+            import asyncio
+            await asyncio.sleep(self._debounce_delay)
             
-            # Update timestamps
+            if not self._pending_refresh:
+                return
+            
+            self._pending_refresh = False
+            
+            # Check global rate limit
             now = datetime.now()
-            self._last_refresh_per_entity[entity_id] = now
-            self._global_last_refresh = now
+            if self._global_last_refresh:
+                global_elapsed = (now - self._global_last_refresh).total_seconds()
+                required_global = self._get_backoff_interval()
+                if global_elapsed < required_global:
+                    _LOGGER.debug(
+                        f"Global backoff active: {int(required_global - global_elapsed)}s remaining"
+                    )
+                    return
             
-            # Reset failure counter on success
-            if self._consecutive_failures > 0:
-                _LOGGER.info(f"Immediate refresh recovered after {self._consecutive_failures} failures")
-                self._consecutive_failures = 0
+            _LOGGER.info(f"Executing debounced refresh (triggered by: {reason})")
             
-            _LOGGER.debug("Immediate refresh completed (1 API call)")
-            
-        except Exception as e:
-            self._consecutive_failures += 1
-            _LOGGER.error(
-                f"Immediate refresh failed (attempt {self._consecutive_failures}): {e}. "
-                f"Next backoff: {self._get_backoff_interval()}s"
-            )
-            # Don't raise - continue normal polling
+            try:
+                await self._async_fetch_zone_states()
+                
+                self._global_last_refresh = datetime.now()
+                
+                if self._consecutive_failures > 0:
+                    _LOGGER.info(f"Immediate refresh recovered after {self._consecutive_failures} failures")
+                    self._consecutive_failures = 0
+                
+                _LOGGER.debug("Immediate refresh completed (1 API call)")
+                
+            except Exception as e:
+                self._consecutive_failures += 1
+                _LOGGER.error(
+                    f"Immediate refresh failed (attempt {self._consecutive_failures}): {e}. "
+                    f"Next backoff: {self._get_backoff_interval()}s"
+                )
+        
+        import asyncio
+        self._debounce_task = asyncio.create_task(_debounced_refresh())
     
     async def _async_fetch_zone_states(self):
         """Fetch zone states using async API and save to file.
@@ -230,6 +262,9 @@ class ImmediateRefreshHandler:
                     json.dump(zones_data, f, indent=2)
             await self.hass.async_add_executor_job(write_file)
             _LOGGER.debug(f"Zone states refreshed ({len(zones_data.get('zoneStates', {}))} zones)")
+            
+            # Save rate limit info for API Usage sensor immediate update
+            await client.save_ratelimit()
         else:
             raise Exception("Failed to fetch zone states")
     

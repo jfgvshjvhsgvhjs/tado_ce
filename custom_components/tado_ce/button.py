@@ -60,6 +60,7 @@ class TadoResumeAllSchedulesButton(ButtonEntity):
         """Handle button press - resume schedules for all zones."""
         from .async_api import get_async_client
         from .data_loader import load_zones_info_file
+        from .immediate_refresh_handler import get_handler
         
         _LOGGER.info("Resume All Schedules button pressed")
         
@@ -93,6 +94,13 @@ class TadoResumeAllSchedulesButton(ButtonEntity):
             _LOGGER.info(f"Resume All Schedules complete: {success_count} zones processed")
         else:
             _LOGGER.warning(f"Resume All Schedules: {success_count} succeeded, {fail_count} failed")
+        
+        # Trigger immediate refresh to update all entities
+        try:
+            handler = get_handler(self.hass)
+            await handler.trigger_refresh(self.entity_id, "resume_all_schedules")
+        except Exception as e:
+            _LOGGER.debug(f"Failed to trigger immediate refresh: {e}")
 
 
 class TadoWaterHeaterTimerButton(ButtonEntity):

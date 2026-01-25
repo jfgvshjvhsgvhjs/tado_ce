@@ -4,6 +4,27 @@
 
 ---
 
+## v1.6.0 (Unreleased) - Refresh & Automation Fixes
+
+### Bug Reports & Issue Reporters
+
+**[@neonsp](https://github.com/neonsp)** - [Issue #31](https://github.com/hiall-fyi/tado_ce/issues/31)
+- Reported `climate.set_temperature` ignoring `hvac_mode` parameter in Node-RED
+- Helped identify missing `ATTR_HVAC_MODE` handling in `async_set_temperature()`
+
+**[@hapklaar](https://github.com/hapklaar)** - [Issue #44](https://github.com/hiall-fyi/tado_ce/issues/44)
+- Reported climate entities not updating consistently when changing multiple zones
+- Identified Resume All Schedules button not refreshing dashboard
+- Provided detailed screenshots showing the issue
+
+### What Was Fixed
+
+- ✅ **Issue #31**: `climate.set_temperature` now handles `hvac_mode` parameter for Node-RED/automation compatibility
+- ✅ **Issue #44**: Debounced refresh mechanism for multi-zone updates (multiple changes = 1 API call)
+- ✅ **Issue #44**: Resume All Schedules button now triggers immediate refresh
+
+---
+
 ## v1.5.5 (2026-01-24) - AC Auto Mode & API Optimization
 
 ### Bug Reports & Issue Reporters

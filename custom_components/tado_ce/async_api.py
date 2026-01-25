@@ -2,6 +2,8 @@
 
 This module provides async HTTP client functionality using aiohttp,
 replacing the blocking urllib-based calls for better Home Assistant integration.
+
+v1.6.0: Added async_sync() to replace subprocess-based tado_api.py sync.
 """
 import json
 import logging
@@ -15,7 +17,8 @@ import asyncio
 from .const import (
     DOMAIN, DATA_DIR, CONFIG_FILE, ZONES_FILE, ZONES_INFO_FILE,
     RATELIMIT_FILE, WEATHER_FILE, MOBILE_DEVICES_FILE, HOME_STATE_FILE,
-    OFFSETS_FILE, TADO_API_BASE, TADO_AUTH_URL, CLIENT_ID, API_ENDPOINT_DEVICES
+    OFFSETS_FILE, AC_CAPABILITIES_FILE, TADO_API_BASE, TADO_AUTH_URL, 
+    CLIENT_ID, API_ENDPOINT_DEVICES
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -97,6 +100,69 @@ class TadoAsyncClient:
                 self._rate_limit["reset_seconds"] = int(ratelimit.split("t=")[1].split(";")[0])
             except (ValueError, IndexError):
                 pass
+    
+    async def save_ratelimit(self, status: str = "ok"):
+        """Save current rate limit info to file for sensor updates.
+        
+        Args:
+            status: Status string ("ok", "rate_limited", "error")
+        """
+        if not self._rate_limit:
+            return
+        
+        limit = self._rate_limit.get("limit", 5000)
+        remaining = self._rate_limit.get("remaining", limit)
+        reset_seconds = self._rate_limit.get("reset_seconds", 0)
+        
+        used = limit - remaining
+        percentage_used = round((used / limit) * 100, 1) if limit > 0 else 0
+        
+        # Calculate reset time
+        reset_at = None
+        reset_human = None
+        if reset_seconds > 0:
+            reset_dt = datetime.now() + timedelta(seconds=reset_seconds)
+            reset_at = reset_dt.isoformat()
+            hours = reset_seconds // 3600
+            minutes = (reset_seconds % 3600) // 60
+            if hours > 0:
+                reset_human = f"{hours}h {minutes}m"
+            else:
+                reset_human = f"{minutes}m"
+        
+        data = {
+            "limit": limit,
+            "remaining": remaining,
+            "used": used,
+            "percentage_used": percentage_used,
+            "reset_seconds": reset_seconds,
+            "reset_at": reset_at,
+            "reset_human": reset_human,
+            "last_updated": datetime.now().isoformat(),
+            "status": status
+        }
+        
+        try:
+            loop = asyncio.get_event_loop()
+            await loop.run_in_executor(None, self._save_ratelimit_sync, data)
+            _LOGGER.debug(f"Rate limit saved: {used}/{limit} ({percentage_used}%)")
+        except Exception as e:
+            _LOGGER.debug(f"Failed to save rate limit: {e}")
+    
+    def _save_ratelimit_sync(self, data: dict):
+        """Save rate limit synchronously (for executor)."""
+        import tempfile
+        import shutil
+        
+        RATELIMIT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        
+        with tempfile.NamedTemporaryFile(
+            mode='w', dir=RATELIMIT_FILE.parent, delete=False, suffix='.tmp'
+        ) as tmp:
+            json.dump(data, tmp, indent=2)
+            temp_path = tmp.name
+        
+        shutil.move(temp_path, RATELIMIT_FILE)
     
     async def get_access_token(self) -> Optional[str]:
         """Get valid access token with automatic refresh.
@@ -407,6 +473,193 @@ class TadoAsyncClient:
     def get_rate_limit(self) -> dict:
         """Get current rate limit info."""
         return self._rate_limit.copy()
+    
+    # =========================================================================
+    # Sync Functions (v1.6.0) - Replace subprocess-based tado_api.py sync
+    # =========================================================================
+    
+    async def async_sync(
+        self,
+        quick: bool = False,
+        weather_enabled: bool = True,
+        mobile_devices_enabled: bool = True,
+        mobile_devices_frequent_sync: bool = False,
+        offset_enabled: bool = False
+    ) -> bool:
+        """Perform async data sync from Tado API.
+        
+        Replaces the subprocess-based tado_api.py sync with native async calls.
+        
+        Args:
+            quick: If True, only sync zoneStates (and weather if enabled).
+                   If False, also sync zones_info, mobile_devices, offsets, AC caps.
+            weather_enabled: Whether to fetch weather data.
+            mobile_devices_enabled: Whether to fetch mobile devices.
+            mobile_devices_frequent_sync: If True, fetch mobile devices on quick sync too.
+            offset_enabled: Whether to fetch temperature offsets.
+            
+        Returns:
+            True if sync succeeded, False otherwise.
+        """
+        sync_type = "quick" if quick else "full"
+        _LOGGER.info(f"Tado CE async sync starting ({sync_type})")
+        
+        try:
+            # Always fetch zone states (most important)
+            zones_data = await self.api_call("zoneStates")
+            if zones_data is None:
+                _LOGGER.error("Failed to fetch zone states")
+                await self.save_ratelimit("error")
+                return False
+            
+            await self._save_json_file(ZONES_FILE, zones_data)
+            zone_count = len((zones_data.get('zoneStates') or {}).keys())
+            _LOGGER.debug(f"Zone states saved ({zone_count} zones)")
+            
+            # Fetch weather if enabled
+            if weather_enabled:
+                weather_data = await self.api_call("weather")
+                if weather_data:
+                    await self._save_json_file(WEATHER_FILE, weather_data)
+                    _LOGGER.debug("Weather data saved")
+            
+            # Always fetch home state (needed for away mode)
+            home_state = await self.api_call("state")
+            if home_state:
+                await self._save_json_file(HOME_STATE_FILE, home_state)
+                _LOGGER.debug(f"Home state saved (presence: {home_state.get('presence')})")
+            
+            # Fetch mobile devices on quick sync if frequent sync enabled
+            if quick and mobile_devices_enabled and mobile_devices_frequent_sync:
+                mobile_data = await self.api_call("mobileDevices")
+                if mobile_data:
+                    await self._save_json_file(MOBILE_DEVICES_FILE, mobile_data)
+                    _LOGGER.debug(f"Mobile devices saved (frequent sync, {len(mobile_data)} devices)")
+            
+            # Full sync: also fetch zone info, mobile devices, offsets, AC caps
+            if not quick:
+                # Fetch zone info
+                zones_info = await self.api_call("zones")
+                if zones_info:
+                    await self._save_json_file(ZONES_INFO_FILE, zones_info)
+                    _LOGGER.debug(f"Zone info saved ({len(zones_info)} zones)")
+                    
+                    # Fetch mobile devices if enabled
+                    if mobile_devices_enabled:
+                        mobile_data = await self.api_call("mobileDevices")
+                        if mobile_data:
+                            await self._save_json_file(MOBILE_DEVICES_FILE, mobile_data)
+                            _LOGGER.debug(f"Mobile devices saved ({len(mobile_data)} devices)")
+                    
+                    # Fetch temperature offsets if enabled
+                    if offset_enabled:
+                        await self._sync_offsets(zones_info)
+                    
+                    # Fetch AC zone capabilities
+                    await self._sync_ac_capabilities(zones_info)
+            
+            # Save rate limit info
+            await self.save_ratelimit("ok")
+            
+            rl = self._rate_limit
+            used = rl.get('limit', 0) - rl.get('remaining', 0) if rl.get('limit') else 0
+            _LOGGER.info(
+                f"Tado CE async sync SUCCESS ({sync_type}): "
+                f"{used}/{rl.get('limit', '?')} API calls used"
+            )
+            return True
+            
+        except Exception as e:
+            _LOGGER.error(f"Tado CE async sync failed: {e}")
+            await self.save_ratelimit("error")
+            return False
+    
+    async def _save_json_file(self, file_path: Path, data: Any):
+        """Save data to JSON file atomically.
+        
+        Args:
+            file_path: Path to save to.
+            data: Data to serialize as JSON.
+        """
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, self._save_json_file_sync, file_path, data)
+    
+    def _save_json_file_sync(self, file_path: Path, data: Any):
+        """Save JSON file synchronously (for executor)."""
+        import tempfile
+        import shutil
+        
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        with tempfile.NamedTemporaryFile(
+            mode='w', dir=file_path.parent, delete=False, suffix='.tmp'
+        ) as tmp:
+            json.dump(data, tmp, indent=2)
+            temp_path = tmp.name
+        
+        shutil.move(temp_path, file_path)
+    
+    async def _sync_offsets(self, zones_info: list):
+        """Sync temperature offsets for all devices.
+        
+        Args:
+            zones_info: List of zone info dicts from API.
+        """
+        offsets = {}
+        
+        for zone in zones_info:
+            zone_id = str(zone.get('id'))
+            zone_type = zone.get('type')
+            
+            # Only fetch offsets for heating/AC zones (not hot water)
+            if zone_type not in ('HEATING', 'AIR_CONDITIONING'):
+                continue
+            
+            devices = zone.get('devices') or []
+            for device in devices:
+                serial = device.get('shortSerialNo')
+                if serial:
+                    try:
+                        offset = await self.get_device_offset(serial)
+                        if offset is not None:
+                            offsets[zone_id] = offset
+                            _LOGGER.debug(f"Offset for zone {zone_id}: {offset}°C")
+                        break  # Only need first device per zone
+                    except Exception as e:
+                        _LOGGER.warning(f"Failed to fetch offset for device {serial}: {e}")
+        
+        if offsets:
+            await self._save_json_file(OFFSETS_FILE, offsets)
+            _LOGGER.debug(f"Offsets saved ({len(offsets)} zones)")
+    
+    async def _sync_ac_capabilities(self, zones_info: list):
+        """Sync AC zone capabilities.
+        
+        Args:
+            zones_info: List of zone info dicts from API.
+        """
+        ac_capabilities = {}
+        
+        for zone in zones_info:
+            zone_id = str(zone.get('id'))
+            zone_type = zone.get('type')
+            
+            # Only fetch capabilities for AC zones
+            if zone_type != 'AIR_CONDITIONING':
+                continue
+            
+            try:
+                caps = await self.api_call(f"zones/{zone_id}/capabilities")
+                if caps:
+                    ac_capabilities[zone_id] = caps
+                    modes = [m for m in ['COOL', 'HEAT', 'DRY', 'FAN', 'AUTO'] if m in caps]
+                    _LOGGER.debug(f"AC capabilities for zone {zone_id}: modes={modes}")
+            except Exception as e:
+                _LOGGER.warning(f"Failed to fetch AC capabilities for zone {zone_id}: {e}")
+        
+        if ac_capabilities:
+            await self._save_json_file(AC_CAPABILITIES_FILE, ac_capabilities)
+            _LOGGER.debug(f"AC capabilities saved ({len(ac_capabilities)} zones)")
 
     async def add_meter_reading(self, reading: int, date: str = None) -> bool:
         """Add energy meter reading.

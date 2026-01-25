@@ -15,6 +15,7 @@ import homeassistant.helpers.config_validation as cv
 from .const import DOMAIN, DATA_DIR, CONFIG_FILE, RATELIMIT_FILE, TADO_API_BASE, TADO_AUTH_URL, CLIENT_ID, API_ENDPOINT_DEVICES
 from .config_manager import ConfigurationManager
 from .auth_manager import get_auth_manager
+from .async_api import get_async_client
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,8 +28,8 @@ except AttributeError:
     PLATFORMS = [Platform.SENSOR, Platform.CLIMATE, Platform.BINARY_SENSOR, Platform.WATER_HEATER, Platform.DEVICE_TRACKER, Platform.SWITCH]
     _LOGGER.debug("Platform.BUTTON not available - button entities will not be loaded")
 
-# Script path - use relative path from this file's location
-SCRIPT_PATH = str(Path(__file__).parent / "tado_api.py")
+# v1.6.0: Removed SCRIPT_PATH - no longer using subprocess for sync
+# Legacy tado_api.py is deprecated but kept for reference
 
 # Service names
 SERVICE_SET_CLIMATE_TIMER = "set_climate_timer"
@@ -474,7 +475,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if not CONFIG_FILE.exists():
         _LOGGER.warning(
             "Tado CE config file not found. "
-            f"Run 'python3 {SCRIPT_PATH} auth' first."
+            "Use Settings > Devices & Services > Add Integration > Tado CE to authenticate."
         )
     
     # Track current interval and last full sync time
@@ -497,8 +498,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         
         # Schedule new interval
         async def async_sync_wrapper(now):
-            """Async wrapper for sync_tado."""
-            await hass.async_add_executor_job(sync_tado)
+            """Async wrapper for sync."""
+            await async_sync_tado()
         
         cancel_interval[0] = async_track_time_interval(
             hass,
@@ -509,25 +510,28 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Store cancel function in hass.data so we can cancel on reload
         hass.data[DOMAIN]['polling_cancel'] = cancel_interval[0]
     
-    def sync_tado(now=None):
-        """Run Tado sync script."""
-        import subprocess
+    async def async_sync_tado():
+        """Run Tado sync using async API (v1.6.0+).
         
+        Replaces subprocess-based sync with native async calls.
+        """
         # Check if polling should be paused due to Test Mode limit
         if config_manager.get_test_mode_enabled():
             try:
                 if RATELIMIT_FILE.exists():
-                    with open(RATELIMIT_FILE) as f:
-                        data = json.load(f)
-                        used = data.get("used", 0)
-                        if used >= 100:
-                            _LOGGER.warning(
-                                f"Tado CE: Test Mode limit reached ({used}/100 calls). "
-                                "Polling paused until quota resets."
-                            )
-                            # Re-schedule to check again later
-                            schedule_next_sync()
-                            return
+                    def read_ratelimit():
+                        with open(RATELIMIT_FILE) as f:
+                            return json.load(f)
+                    data = await hass.async_add_executor_job(read_ratelimit)
+                    used = data.get("used", 0)
+                    if used >= 100:
+                        _LOGGER.warning(
+                            f"Tado CE: Test Mode limit reached ({used}/100 calls). "
+                            "Polling paused until quota resets."
+                        )
+                        # Re-schedule to check again later
+                        schedule_next_sync()
+                        return
             except Exception as e:
                 _LOGGER.error(f"Failed to check Test Mode limit: {e}")
         
@@ -541,25 +545,32 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 do_full_sync = True
         
         sync_type = "full" if do_full_sync else "quick"
-        _LOGGER.info(f"Tado CE: Executing {sync_type} sync")
+        _LOGGER.debug(f"Tado CE: Executing {sync_type} sync")
         
         try:
-            cmd = ["python3", SCRIPT_PATH, "sync"]
-            if not do_full_sync:
-                cmd.append("--quick")
+            # Get async client and perform sync
+            client = get_async_client(hass)
             
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=60
+            # Get config options
+            weather_enabled = config_manager.get_weather_enabled()
+            mobile_devices_enabled = config_manager.get_mobile_devices_enabled()
+            mobile_devices_frequent_sync = config_manager.get_mobile_devices_frequent_sync()
+            offset_enabled = config_manager.get_offset_enabled()
+            
+            success = await client.async_sync(
+                quick=not do_full_sync,
+                weather_enabled=weather_enabled,
+                mobile_devices_enabled=mobile_devices_enabled,
+                mobile_devices_frequent_sync=mobile_devices_frequent_sync,
+                offset_enabled=offset_enabled
             )
-            if result.returncode == 0:
-                _LOGGER.info(f"Tado CE {sync_type} sync SUCCESS")
+            
+            if success:
                 if do_full_sync:
                     last_full_sync[0] = datetime.now()
             else:
-                _LOGGER.warning(f"Tado CE sync: {result.stdout} {result.stderr}")
+                _LOGGER.warning("Tado CE sync returned failure status")
+                
         except Exception as e:
             _LOGGER.error(f"Tado CE sync ERROR: {e}")
         
@@ -570,7 +581,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info(f"Tado CE: Checking config file at {CONFIG_FILE}, exists={CONFIG_FILE.exists()}")
     if CONFIG_FILE.exists():
         _LOGGER.info("Tado CE: Starting initial sync...")
-        await hass.async_add_executor_job(sync_tado)
+        await async_sync_tado()
         _LOGGER.info("Tado CE: Initial sync completed")
     else:
         # Still schedule polling even without config

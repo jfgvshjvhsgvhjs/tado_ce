@@ -18,6 +18,7 @@ from homeassistant.components.climate.const import (
     PRESET_AWAY,
 )
 from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.components.climate import ATTR_HVAC_MODE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 
@@ -347,6 +348,12 @@ class TadoClimate(ClimateEntity):
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
         temperature = kwargs.get(ATTR_TEMPERATURE)
+        hvac_mode = kwargs.get(ATTR_HVAC_MODE)
+        
+        # If hvac_mode is provided, set it first
+        if hvac_mode is not None:
+            await self.async_set_hvac_mode(hvac_mode)
+        
         if temperature is None:
             return
         
@@ -668,11 +675,26 @@ class TadoACClimate(ClimateEntity):
     async def async_set_temperature(self, **kwargs):
         """Set new target temperature."""
         temperature = kwargs.get(ATTR_TEMPERATURE)
-        if temperature is None:
+        hvac_mode = kwargs.get(ATTR_HVAC_MODE)
+        
+        # If hvac_mode is provided, convert to Tado mode and include in overlay
+        tado_mode = None
+        if hvac_mode is not None:
+            # Map HA hvac_mode to Tado mode
+            tado_mode = HA_TO_TADO_HVAC_MODE.get(hvac_mode)
+            if hvac_mode == HVACMode.OFF:
+                # If setting to OFF, just call set_hvac_mode
+                await self.async_set_hvac_mode(hvac_mode)
+                return
+        
+        if temperature is None and tado_mode is None:
             return
         
-        if await self._async_set_ac_overlay(temperature=temperature):
-            self._attr_target_temperature = temperature
+        if await self._async_set_ac_overlay(temperature=temperature, mode=tado_mode):
+            if temperature is not None:
+                self._attr_target_temperature = temperature
+            if hvac_mode is not None:
+                self._attr_hvac_mode = hvac_mode
             await self._async_trigger_immediate_refresh("temperature_change")
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):

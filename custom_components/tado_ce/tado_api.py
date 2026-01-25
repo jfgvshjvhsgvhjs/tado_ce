@@ -1,16 +1,32 @@
 #!/usr/bin/env python3
 """
-Tado API Client - All-in-one script for Home Assistant
-Handles authentication, token refresh, API calls, and rate limit tracking.
+Tado API Client - DEPRECATED as of v1.6.0
 
-Usage:
-  python3 tado_api.py sync          # Sync zone data + rate limits
-  python3 tado_api.py auth          # Interactive device authorization
-  python3 tado_api.py status        # Show current status
-  
+⚠️  DEPRECATION NOTICE ⚠️
+This file is deprecated and will be removed in a future version.
+The sync functionality has been moved to async_api.py for better
+Home Assistant integration (non-blocking async calls).
+
+The CLI authentication tool was replaced by in-app OAuth flow in v1.4.0.
+
+This file is kept for reference only. Do not use for new development.
+
+Legacy Usage (no longer recommended):
+  python3 tado_api.py sync          # Use async_api.async_sync() instead
+  python3 tado_api.py auth          # Use config_flow.py OAuth instead
+  python3 tado_api.py status        # Check ratelimit.json directly
+
 Config file: /config/.storage/tado_ce/config.json
 Output files: /config/.storage/tado_ce/zones.json, etc.
 """
+
+import warnings
+warnings.warn(
+    "tado_api.py is deprecated since v1.6.0. "
+    "Use async_api.py for sync operations.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
 import json
 import os

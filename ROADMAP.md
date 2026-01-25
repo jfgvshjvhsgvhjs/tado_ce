@@ -4,11 +4,43 @@ Feature requests and planned improvements for Tado CE.
 
 ## Planned for v1.6.0
 
-- [ ] **Better upgrade path testing** - Release beta versions for community testing before major releases
-- [ ] **Deprecate tado_api.py** - Move sync functions to `__init__.py` or new `sync.py`, remove legacy CLI authentication tool (replaced by in-app OAuth flow since v1.4.0)
-- [ ] **API Usage sensor immediate update** - Update rate limit display after immediate refresh (currently only updates on full sync)
-- [ ] **Fix `climate.set_temperature` with `hvac_mode`** - Handle `hvac_mode` parameter in `async_set_temperature()` for Node-RED and automation compatibility ([#31](https://github.com/hiall-fyi/tado_ce/issues/31) - @neonsp)
-- [ ] **Fix climate entities not updating consistently** - Debounced refresh for multi-zone updates, Resume All Schedules now triggers refresh ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @hapklaar)
+- [x] **Deprecate tado_api.py** - Sync now uses native async API in `async_api.py` (faster, no subprocess overhead). File marked deprecated with warning, will be deleted in v2.0.0.
+- [x] **Fix `climate.set_temperature` with `hvac_mode`** - Handle `hvac_mode` parameter in `async_set_temperature()` for Node-RED and automation compatibility ([#31](https://github.com/hiall-fyi/tado_ce/issues/31) - @neonsp)
+- [x] **Fix climate entities not updating consistently** - Debounced refresh for multi-zone updates, Resume All Schedules now triggers refresh ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @hapklaar)
+- [x] **API Usage sensor immediate update** - Rate limit display now updates after immediate refresh
+
+---
+
+## Multi-Home Support Roadmap (v1.7.0 → v2.0.0)
+
+Gradual migration path to support multiple Tado homes simultaneously.
+
+### v1.7.0 - Unique ID Migration
+
+- [ ] **Change integration unique_id** - From `tado_ce_integration` to `tado_ce_{home_id}`
+- [ ] **Auto-migration** - Existing entries automatically updated, no user action needed
+- [ ] **Backwards compatible** - Single home users unaffected
+
+### v1.8.0 - Data Files Migration
+
+- [ ] **Per-home data files** - `config_{home_id}.json`, `zones_{home_id}.json`, etc.
+- [ ] **Auto-migration** - Existing files renamed with home_id suffix
+- [ ] **Backwards compatible** - Falls back to legacy filenames if needed
+
+### v1.9.0 - Hub Device Migration
+
+- [ ] **Change hub device identifier** - From `tado_ce_hub` to `tado_ce_hub_{home_id}`
+- [ ] **Device registry migration** - Existing hub device updated automatically
+- [ ] **Entity IDs stable** - No entity ID changes for existing users
+
+### v2.0.0 - Multiple Homes Enabled
+
+- [ ] **Allow multiple integration entries** - Each entry for a different home
+- [ ] **Delete tado_api.py** - File deprecated in v1.6.0, now fully removed
+- [ ] **Better upgrade path testing** - Release beta versions for community testing
+- [ ] **Documentation update** - Multi-home setup guide
+
+**Note**: Entity IDs remain stable throughout migration if entity `unique_id` is unchanged.
 
 ---
 
@@ -29,17 +61,6 @@ Investigating local API to reduce cloud dependency and API call usage.
 - **Goal**: Local-first, cloud-fallback approach
 - **Benefits**: Works without subscription (100 calls/day limit), faster response, works when cloud is down
 - **Status**: Gathering community feedback - react/comment on Discussion #29 if interested!
-
-### Multiple Homes (Simultaneous)
-
-v1.4.0 supports selecting a home during setup, but only one home per integration entry. To support multiple homes simultaneously (add integration multiple times), the following changes would be needed:
-
-1. **Unique ID**: Change from `tado_ce_integration` to `tado_ce_{home_id}`
-2. **Data files**: Per-home files (`config_{home_id}.json`, `zones_{home_id}.json`)
-3. **Hub device identifier**: Change from `tado_ce_hub` to `tado_ce_hub_{home_id}`
-4. **Migration**: Existing users would need migration to new identifiers
-
-**Note**: Entity IDs should remain stable if entity `unique_id` is unchanged. Low priority as multi-home use cases are rare.
 
 ---
 

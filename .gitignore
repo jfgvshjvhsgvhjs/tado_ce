@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 *.pyc
 
+# Environment variables (contains tokens!)
+.env
+
 # User data (contains tokens!)
 custom_components/tado_ce/data/
 
