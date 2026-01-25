@@ -7,7 +7,7 @@ v1.6.0: Added async_sync() to replace subprocess-based tado_api.py sync.
 """
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, Any
 
@@ -79,25 +79,51 @@ class TadoAsyncClient:
         shutil.move(temp_path, CONFIG_FILE)
     
     def _parse_ratelimit_headers(self, headers: dict):
-        """Parse Tado rate limit headers."""
-        policy = headers.get("ratelimit-policy", "")
-        ratelimit = headers.get("ratelimit", "")
+        """Parse Tado rate limit headers.
         
+        Expected format:
+        - RateLimit-Policy: "perday";q=5000;w=86400
+        - RateLimit: "perday";r=4962
+        
+        Note: Header names are case-sensitive in dict, so we do case-insensitive lookup.
+        Tado may not always return 't=' (reset seconds).
+        """
+        # Case-insensitive header lookup (Tado uses RateLimit-Policy, not ratelimit-policy)
+        policy = ""
+        ratelimit = ""
+        for key, value in headers.items():
+            key_lower = key.lower()
+            if key_lower == "ratelimit-policy":
+                policy = value
+            elif key_lower == "ratelimit":
+                ratelimit = value
+        
+        # Parse limit from policy (q=5000)
         if "q=" in policy:
             try:
                 self._rate_limit["limit"] = int(policy.split("q=")[1].split(";")[0])
             except (ValueError, IndexError):
                 pass
         
+        # Parse remaining from ratelimit (r=4962)
         if "r=" in ratelimit:
             try:
                 self._rate_limit["remaining"] = int(ratelimit.split("r=")[1].split(";")[0])
             except (ValueError, IndexError):
                 pass
         
+        # Parse reset seconds from ratelimit (t=xxxxx) - may not always be present
         if "t=" in ratelimit:
             try:
                 self._rate_limit["reset_seconds"] = int(ratelimit.split("t=")[1].split(";")[0])
+            except (ValueError, IndexError):
+                pass
+        elif "w=" in policy:
+            # Fallback: use window from policy as reset estimate
+            # w=86400 means 24 hour window
+            try:
+                window = int(policy.split("w=")[1].split(";")[0])
+                self._rate_limit["reset_seconds"] = window
             except (ValueError, IndexError):
                 pass
     
@@ -107,11 +133,9 @@ class TadoAsyncClient:
         Args:
             status: Status string ("ok", "rate_limited", "error")
         """
-        if not self._rate_limit:
-            return
-        
+        # Use values from parsed headers, with sensible defaults
         limit = self._rate_limit.get("limit", 5000)
-        remaining = self._rate_limit.get("remaining", limit)
+        remaining = self._rate_limit.get("remaining", 5000)
         reset_seconds = self._rate_limit.get("reset_seconds", 0)
         
         used = limit - remaining
@@ -121,7 +145,7 @@ class TadoAsyncClient:
         reset_at = None
         reset_human = None
         if reset_seconds > 0:
-            reset_dt = datetime.now() + timedelta(seconds=reset_seconds)
+            reset_dt = datetime.now(timezone.utc) + timedelta(seconds=reset_seconds)
             reset_at = reset_dt.isoformat()
             hours = reset_seconds // 3600
             minutes = (reset_seconds % 3600) // 60
@@ -138,7 +162,7 @@ class TadoAsyncClient:
             "reset_seconds": reset_seconds,
             "reset_at": reset_at,
             "reset_human": reset_human,
-            "last_updated": datetime.now().isoformat(),
+            "last_updated": datetime.now(timezone.utc).isoformat(),
             "status": status
         }
         

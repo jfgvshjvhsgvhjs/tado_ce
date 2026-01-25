@@ -64,8 +64,15 @@ def is_daytime(config_manager: ConfigurationManager) -> bool:
         
     Note:
         If day_start == night_start, returns True (uniform mode - always day polling)
+        
+    v1.6.1: Uses Home Assistant's timezone instead of system timezone
     """
-    hour = datetime.now().hour
+    from homeassistant.util import dt as dt_util
+    
+    # Use HA's timezone-aware current time
+    now = dt_util.now()
+    hour = now.hour
+    
     day_start = config_manager.get_day_start_hour()
     night_start = config_manager.get_night_start_hour()
     

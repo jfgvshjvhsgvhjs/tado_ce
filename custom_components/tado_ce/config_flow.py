@@ -5,9 +5,18 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant import config_entries
+from homeassistant import config_entries, data_entry_flow
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import (
+    BooleanSelector,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+    TextSelector,
+    TextSelectorConfig,
+    TextSelectorType,
+)
 
 from .const import (
     DOMAIN, CLIENT_ID, DATA_DIR, CONFIG_FILE,
@@ -358,21 +367,46 @@ class TadoCEConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class TadoCEOptionsFlow(config_entries.OptionsFlow):
-    """Handle options flow for Tado CE."""
+    """Handle options flow for Tado CE with collapsible sections."""
 
     def __init__(self, config_entry):
         """Initialize options flow."""
         super().__init__()
 
     async def async_step_init(self, user_input=None):
-        """Manage the options."""
+        """Manage the options with collapsible sections."""
         errors = {}
         
         if user_input is not None:
-            processed_input = dict(user_input)
+            # Flatten nested section data
+            processed_input = {}
+            
+            # Flatten features section
+            if 'features' in user_input:
+                features = user_input['features']
+                for key in ['weather_enabled', 'mobile_devices_enabled', 'offset_enabled']:
+                    if key in features:
+                        processed_input[key] = features[key]
+            
+            # Flatten polling_schedule section
+            if 'polling_schedule' in user_input:
+                polling = user_input['polling_schedule']
+                for key in ['day_start_hour', 'night_start_hour', 'custom_day_interval', 'custom_night_interval']:
+                    if key in polling:
+                        processed_input[key] = polling[key]
+            
+            # Flatten advanced_settings section
+            if 'advanced_settings' in user_input:
+                advanced = user_input['advanced_settings']
+                for key in ['hot_water_timer_duration', 'refresh_debounce_seconds', 
+                           'mobile_devices_frequent_sync', 'api_history_retention_days', 'test_mode_enabled']:
+                    if key in advanced:
+                        processed_input[key] = advanced[key]
             
             # Handle custom day interval
-            day_interval_str = user_input.get('custom_day_interval', '').strip()
+            day_interval_str = processed_input.get('custom_day_interval', '')
+            if isinstance(day_interval_str, str):
+                day_interval_str = day_interval_str.strip()
             if day_interval_str:
                 try:
                     day_interval = int(day_interval_str)
@@ -386,7 +420,9 @@ class TadoCEOptionsFlow(config_entries.OptionsFlow):
                 processed_input['custom_day_interval'] = None
             
             # Handle custom night interval
-            night_interval_str = user_input.get('custom_night_interval', '').strip()
+            night_interval_str = processed_input.get('custom_night_interval', '')
+            if isinstance(night_interval_str, str):
+                night_interval_str = night_interval_str.strip()
             if night_interval_str:
                 try:
                     night_interval = int(night_interval_str)
@@ -403,39 +439,57 @@ class TadoCEOptionsFlow(config_entries.OptionsFlow):
                 return self.async_create_entry(title="", data=processed_input)
 
         options = self.config_entry.options
-        weather_enabled = options.get('weather_enabled', False)
-        mobile_devices_enabled = options.get('mobile_devices_enabled', False)
-        mobile_devices_frequent_sync = options.get('mobile_devices_frequent_sync', False)
-        offset_enabled = options.get('offset_enabled', False)
-        test_mode_enabled = options.get('test_mode_enabled', False)
-        day_start_hour = options.get('day_start_hour', 7)
-        night_start_hour = options.get('night_start_hour', 23)
         custom_day_interval = options.get('custom_day_interval')
         custom_night_interval = options.get('custom_night_interval')
-        api_history_retention_days = options.get('api_history_retention_days', 14)
-        hot_water_timer_duration = options.get('hot_water_timer_duration', 60)
 
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema({
-                vol.Optional('weather_enabled', default=weather_enabled): bool,
-                vol.Optional('mobile_devices_enabled', default=mobile_devices_enabled): bool,
-                vol.Optional('mobile_devices_frequent_sync', default=mobile_devices_frequent_sync): bool,
-                vol.Optional('offset_enabled', default=offset_enabled): bool,
-                vol.Optional('test_mode_enabled', default=test_mode_enabled): bool,
-                vol.Optional('api_history_retention_days', default=api_history_retention_days): vol.All(
-                    int, vol.Range(min=0, max=365)
+                # === Features (collapsed) ===
+                vol.Required("features"): data_entry_flow.section(
+                    vol.Schema({
+                        vol.Optional('weather_enabled', default=options.get('weather_enabled', False)): BooleanSelector(),
+                        vol.Optional('mobile_devices_enabled', default=options.get('mobile_devices_enabled', False)): BooleanSelector(),
+                        vol.Optional('offset_enabled', default=options.get('offset_enabled', False)): BooleanSelector(),
+                    }),
+                    {"collapsed": True},
                 ),
-                vol.Required('day_start_hour', default=day_start_hour): vol.All(
-                    int, vol.Range(min=0, max=23)
+                
+                # === Polling Schedule (collapsed) ===
+                vol.Required("polling_schedule"): data_entry_flow.section(
+                    vol.Schema({
+                        vol.Required('day_start_hour', default=options.get('day_start_hour', 7)): NumberSelector(
+                            NumberSelectorConfig(min=0, max=23, step=1, mode=NumberSelectorMode.BOX)
+                        ),
+                        vol.Required('night_start_hour', default=options.get('night_start_hour', 23)): NumberSelector(
+                            NumberSelectorConfig(min=0, max=23, step=1, mode=NumberSelectorMode.BOX)
+                        ),
+                        vol.Optional('custom_day_interval', default=str(custom_day_interval) if custom_day_interval else ""): TextSelector(
+                            TextSelectorConfig(type=TextSelectorType.TEXT)
+                        ),
+                        vol.Optional('custom_night_interval', default=str(custom_night_interval) if custom_night_interval else ""): TextSelector(
+                            TextSelectorConfig(type=TextSelectorType.TEXT)
+                        ),
+                    }),
+                    {"collapsed": True},
                 ),
-                vol.Required('night_start_hour', default=night_start_hour): vol.All(
-                    int, vol.Range(min=0, max=23)
-                ),
-                vol.Optional('custom_day_interval', default=str(custom_day_interval) if custom_day_interval else ""): str,
-                vol.Optional('custom_night_interval', default=str(custom_night_interval) if custom_night_interval else ""): str,
-                vol.Optional('hot_water_timer_duration', default=hot_water_timer_duration): vol.All(
-                    int, vol.Range(min=5, max=1440)
+                
+                # === Advanced Settings (collapsed) ===
+                vol.Required("advanced_settings"): data_entry_flow.section(
+                    vol.Schema({
+                        vol.Optional('hot_water_timer_duration', default=options.get('hot_water_timer_duration', 60)): NumberSelector(
+                            NumberSelectorConfig(min=5, max=1440, step=1, mode=NumberSelectorMode.BOX, unit_of_measurement="min")
+                        ),
+                        vol.Optional('refresh_debounce_seconds', default=options.get('refresh_debounce_seconds', 15)): NumberSelector(
+                            NumberSelectorConfig(min=1, max=60, step=1, mode=NumberSelectorMode.BOX, unit_of_measurement="sec")
+                        ),
+                        vol.Optional('mobile_devices_frequent_sync', default=options.get('mobile_devices_frequent_sync', False)): BooleanSelector(),
+                        vol.Optional('api_history_retention_days', default=options.get('api_history_retention_days', 14)): NumberSelector(
+                            NumberSelectorConfig(min=0, max=365, step=1, mode=NumberSelectorMode.BOX, unit_of_measurement="days")
+                        ),
+                        vol.Optional('test_mode_enabled', default=options.get('test_mode_enabled', False)): BooleanSelector(),
+                    }),
+                    {"collapsed": True},
                 ),
             }),
             errors=errors,

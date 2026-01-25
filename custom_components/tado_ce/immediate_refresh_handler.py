@@ -47,7 +47,23 @@ class ImmediateRefreshHandler:
         # Debounce mechanism for batch updates
         self._pending_refresh: bool = False
         self._debounce_task: Optional[object] = None
-        self._debounce_delay = 1.0  # Wait 1 second for more changes before refreshing
+        self._debounce_delay = 15.0  # v1.6.1: Default 15 seconds (was 1s), configurable via options
+    
+    def _get_debounce_delay(self) -> float:
+        """Get debounce delay from config or use default.
+        
+        v1.6.1: Configurable via Options > Refresh Debounce Delay
+        """
+        try:
+            from .const import DOMAIN
+            entries = self.hass.config_entries.async_entries(DOMAIN)
+            if entries:
+                from .config_manager import ConfigurationManager
+                config_manager = ConfigurationManager(entries[0])
+                return float(config_manager.get_refresh_debounce_seconds())
+        except Exception:
+            pass
+        return self._debounce_delay
     
     async def _get_rate_limit_info(self) -> dict:
         """Get current rate limit information.
@@ -203,7 +219,8 @@ class ImmediateRefreshHandler:
         # Schedule debounced refresh
         async def _debounced_refresh():
             import asyncio
-            await asyncio.sleep(self._debounce_delay)
+            delay = self._get_debounce_delay()
+            await asyncio.sleep(delay)
             
             if not self._pending_refresh:
                 return

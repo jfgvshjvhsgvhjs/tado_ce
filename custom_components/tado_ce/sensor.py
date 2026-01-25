@@ -279,10 +279,12 @@ class TadoApiUsageSensor(SensorEntity):
                 else:
                     self._attr_available = False
             
-            # Load call history from tracker
+            # Load call history from tracker and convert to local timezone
             try:
                 from .api_call_tracker import APICallTracker
                 from .config_manager import ConfigurationManager
+                from homeassistant.util import dt as dt_util
+                from datetime import datetime
                 
                 # Get retention days from config
                 retention_days = 14  # default
@@ -293,7 +295,23 @@ class TadoApiUsageSensor(SensorEntity):
                     pass
                 
                 tracker = APICallTracker(DATA_DIR, retention_days=retention_days)
-                self._call_history = tracker.get_recent_calls(limit=50)
+                raw_history = tracker.get_recent_calls(limit=50)
+                
+                # Convert timestamps to local timezone for display
+                self._call_history = []
+                for call in raw_history:
+                    call_copy = call.copy()
+                    try:
+                        # Parse ISO timestamp and convert to local
+                        ts = datetime.fromisoformat(call["timestamp"])
+                        if ts.tzinfo is None:
+                            # Assume UTC if no timezone
+                            ts = ts.replace(tzinfo=dt_util.UTC)
+                        local_ts = dt_util.as_local(ts)
+                        call_copy["timestamp"] = local_ts.strftime("%Y-%m-%d %H:%M:%S")
+                    except Exception:
+                        pass  # Keep original timestamp if conversion fails
+                    self._call_history.append(call_copy)
             except Exception as e:
                 _LOGGER.debug(f"Failed to load call history: {e}")
                 self._call_history = []
@@ -355,9 +373,21 @@ class TadoApiResetSensor(SensorEntity):
             
             # Calculate next poll time
             try:
+                from homeassistant.util import dt as dt_util
+                
                 last_updated = data.get("last_updated")
                 if last_updated:
-                    last_sync = datetime.fromisoformat(last_updated.replace('Z', '+00:00'))
+                    # v1.6.1: Robust timestamp parsing for different formats
+                    # - "2026-01-25T12:00:00Z" (legacy tado_api.py)
+                    # - "2026-01-25T12:00:00+00:00" (async_api.py v1.6.1+)
+                    # - "2026-01-25T12:00:00" (naive, assume UTC)
+                    if last_updated.endswith('Z'):
+                        last_sync = datetime.fromisoformat(last_updated.replace('Z', '+00:00'))
+                    elif '+' in last_updated or last_updated.endswith('00:00'):
+                        last_sync = datetime.fromisoformat(last_updated)
+                    else:
+                        # Naive datetime - assume UTC for backwards compatibility
+                        last_sync = datetime.fromisoformat(last_updated).replace(tzinfo=timezone.utc)
                     
                     # Get current polling interval from config
                     from homeassistant.config_entries import ConfigEntry
@@ -368,9 +398,10 @@ class TadoApiResetSensor(SensorEntity):
                         config_manager = ConfigurationManager(entries[0])
                         self._current_interval = get_polling_interval(config_manager)
                         
-                        # Calculate next poll time
+                        # Calculate next poll time and convert to local timezone
                         next_poll_time = last_sync + timedelta(minutes=self._current_interval)
-                        self._next_poll = next_poll_time.strftime("%Y-%m-%d %H:%M:%S")
+                        next_poll_local = dt_util.as_local(next_poll_time)
+                        self._next_poll = next_poll_local.strftime("%Y-%m-%d %H:%M:%S")
                     else:
                         self._next_poll = None
                         self._current_interval = None
@@ -561,8 +592,15 @@ class TadoLastSyncSensor(SensorEntity):
                 data = json.load(f)
                 last_updated = data.get("last_updated")
                 if last_updated:
-                    from datetime import datetime
-                    self._attr_native_value = datetime.fromisoformat(last_updated.replace('Z', '+00:00'))
+                    from datetime import datetime, timezone
+                    # v1.6.1: Robust timestamp parsing for different formats
+                    if last_updated.endswith('Z'):
+                        self._attr_native_value = datetime.fromisoformat(last_updated.replace('Z', '+00:00'))
+                    elif '+' in last_updated or last_updated.endswith('00:00'):
+                        self._attr_native_value = datetime.fromisoformat(last_updated)
+                    else:
+                        # Naive datetime - assume UTC for backwards compatibility
+                        self._attr_native_value = datetime.fromisoformat(last_updated).replace(tzinfo=timezone.utc)
                     self._attr_available = True
                 else:
                     self._attr_available = False

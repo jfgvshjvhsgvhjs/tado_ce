@@ -28,6 +28,7 @@ DEFAULT_DAY_START_HOUR = 7
 DEFAULT_NIGHT_START_HOUR = 23
 DEFAULT_API_HISTORY_RETENTION_DAYS = 14  # 0 = keep forever
 DEFAULT_HOT_WATER_TIMER_DURATION = 60  # minutes
+DEFAULT_REFRESH_DEBOUNCE_SECONDS = 15  # v1.6.1: Debounce delay for immediate refresh
 
 # Validation constants
 MIN_HOUR = 0
@@ -321,6 +322,33 @@ class ConfigurationManager:
             _LOGGER.warning(f"Invalid hot_water_timer_duration: {duration}, using default {DEFAULT_HOT_WATER_TIMER_DURATION}")
             return DEFAULT_HOT_WATER_TIMER_DURATION
         return duration
+    
+    def get_refresh_debounce_seconds(self) -> int:
+        """Get refresh debounce delay in seconds.
+        
+        v1.6.1: Configurable debounce delay for immediate refresh after state changes.
+        Higher values = fewer API calls but slower UI updates.
+        
+        Returns:
+            Debounce delay in seconds (1-60, default 15)
+        """
+        delay = self._options.get('refresh_debounce_seconds', DEFAULT_REFRESH_DEBOUNCE_SECONDS)
+        
+        # Handle both int (from NumberSelector) and string (legacy) input
+        if isinstance(delay, str):
+            if not delay.strip():
+                return DEFAULT_REFRESH_DEBOUNCE_SECONDS
+            try:
+                delay = int(delay)
+            except ValueError:
+                _LOGGER.warning(f"Invalid refresh_debounce_seconds: {delay}, using default {DEFAULT_REFRESH_DEBOUNCE_SECONDS}")
+                return DEFAULT_REFRESH_DEBOUNCE_SECONDS
+        
+        # Validate range (1-60 seconds)
+        if not isinstance(delay, int) or delay < 1 or delay > 60:
+            _LOGGER.warning(f"Invalid refresh_debounce_seconds: {delay}, using default {DEFAULT_REFRESH_DEBOUNCE_SECONDS}")
+            return DEFAULT_REFRESH_DEBOUNCE_SECONDS
+        return delay
     
     def sync_all_to_config_json(self) -> None:
         """Sync all configuration values to config.json for tado_api.py to read.

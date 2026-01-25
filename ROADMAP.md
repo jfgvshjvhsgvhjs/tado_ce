@@ -2,12 +2,12 @@
 
 Feature requests and planned improvements for Tado CE.
 
-## Planned for v1.6.0
+## Planned for v1.6.1
 
-- [x] **Deprecate tado_api.py** - Sync now uses native async API in `async_api.py` (faster, no subprocess overhead). File marked deprecated with warning, will be deleted in v2.0.0.
-- [x] **Fix `climate.set_temperature` with `hvac_mode`** - Handle `hvac_mode` parameter in `async_set_temperature()` for Node-RED and automation compatibility ([#31](https://github.com/hiall-fyi/tado_ce/issues/31) - @neonsp)
-- [x] **Fix climate entities not updating consistently** - Debounced refresh for multi-zone updates, Resume All Schedules now triggers refresh ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @hapklaar)
-- [x] **API Usage sensor immediate update** - Rate limit display now updates after immediate refresh
+- [x] **Fix API Usage/Reset sensors showing 0** - Rate limit header parsing was case-sensitive (v1.6.0 regression)
+- [x] **Timezone awareness** - Day/Night Start Hour now uses Home Assistant's timezone ([#46](https://github.com/hiall-fyi/tado_ce/issues/46) - @hutten0)
+- [x] **Configurable refresh debounce delay** - Default 15 seconds (was 1s), configurable 1-60s in Options ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @neonsp)
+- [x] **Options page UI refinement** - Reorganized into collapsible sections (Features, Polling Schedule, Advanced Settings) for cleaner navigation
 
 ---
 
@@ -67,6 +67,15 @@ Investigating local API to reduce cloud dependency and API call usage.
 ---
 
 ## Completed
+
+### v1.6.0 (2026-01-25)
+
+- [x] **Deprecate tado_api.py** - Sync now uses native async API in `async_api.py` (faster, no subprocess overhead). File marked deprecated with warning, will be deleted in v2.0.0.
+- [x] **Fix `climate.set_temperature` with `hvac_mode`** - Handle `hvac_mode` parameter in `async_set_temperature()` for Node-RED and automation compatibility ([#31](https://github.com/hiall-fyi/tado_ce/issues/31) - @neonsp)
+- [x] **Fix climate entities not updating consistently** - Debounced refresh for multi-zone updates, Resume All Schedules now triggers refresh ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @hapklaar)
+- [x] **Fix cumulative migration bug** - Users upgrading across multiple versions now run ALL migrations correctly
+- [x] **Fix blocking I/O warning** - `get_polling_interval` now uses async-safe ratelimit loading
+- [x] **API Usage sensor immediate update** - Rate limit display now updates after immediate refresh
 
 ### v1.5.5 (2026-01-24)
 

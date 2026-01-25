@@ -53,31 +53,52 @@
       "init": {
         "title": "Tado CE Options",
         "description": "Configure Tado CE integration settings.",
-        "data": {
-          "weather_enabled": "Enable Weather Sensors",
-          "mobile_devices_enabled": "Enable Mobile Device Tracking",
-          "mobile_devices_frequent_sync": "Sync Mobile Devices Frequently",
-          "offset_enabled": "Enable Temperature Offset Attribute",
-          "test_mode_enabled": "Enable Test Mode (100 API call limit)",
-          "api_history_retention_days": "API History Retention (days)",
-          "day_start_hour": "Day Start Hour",
-          "night_start_hour": "Night Start Hour",
-          "custom_day_interval": "Custom Day Polling Interval (minutes)",
-          "custom_night_interval": "Custom Night Polling Interval (minutes)",
-          "hot_water_timer_duration": "Hot Water Timer Duration (minutes)"
-        },
-        "data_description": {
-          "weather_enabled": "Get outside temperature and solar intensity (+1 API call per quick sync)",
-          "mobile_devices_enabled": "Track mobile devices for geofencing (+1 API call per full sync)",
-          "mobile_devices_frequent_sync": "Sync mobile devices on every quick sync instead of only during full sync (every 6 hours)",
-          "offset_enabled": "Add offset_celsius attribute to climate entities (+1 API call per device per full sync)",
-          "test_mode_enabled": "Simulate post-grace period with 100 API call limit for testing",
-          "api_history_retention_days": "Days to keep API call history (0 = forever, default: 14)",
-          "day_start_hour": "Hour when day period starts (0-23, default: 7)",
-          "night_start_hour": "Hour when night period starts (0-23, default: 23)",
-          "custom_day_interval": "Override smart polling for daytime (1-1440 minutes, leave empty for auto)",
-          "custom_night_interval": "Override smart polling for nighttime (1-1440 minutes, leave empty for auto)",
-          "hot_water_timer_duration": "Default duration when turning on hot water (5-1440 minutes, default: 60)"
+        "sections": {
+          "features": {
+            "name": "Features",
+            "data": {
+              "weather_enabled": "Enable Weather Sensors",
+              "mobile_devices_enabled": "Enable Mobile Device Tracking",
+              "offset_enabled": "Enable Temperature Offset Attribute"
+            },
+            "data_description": {
+              "weather_enabled": "Get outside temperature and solar intensity (+1 API call per quick sync)",
+              "mobile_devices_enabled": "Track mobile devices for geofencing (+1 API call per full sync)",
+              "offset_enabled": "Add offset_celsius attribute to climate entities (+1 API call per device per full sync)"
+            }
+          },
+          "polling_schedule": {
+            "name": "Polling Schedule",
+            "data": {
+              "day_start_hour": "Day Start Hour",
+              "night_start_hour": "Night Start Hour",
+              "custom_day_interval": "Custom Day Polling Interval (minutes)",
+              "custom_night_interval": "Custom Night Polling Interval (minutes)"
+            },
+            "data_description": {
+              "day_start_hour": "Hour when day period starts (0-23, default: 7)",
+              "night_start_hour": "Hour when night period starts (0-23, default: 23)",
+              "custom_day_interval": "Override smart polling for daytime (1-1440 minutes, leave empty for auto)",
+              "custom_night_interval": "Override smart polling for nighttime (1-1440 minutes, leave empty for auto)"
+            }
+          },
+          "advanced_settings": {
+            "name": "Advanced Settings",
+            "data": {
+              "hot_water_timer_duration": "Hot Water Timer Duration (minutes)",
+              "refresh_debounce_seconds": "Refresh Debounce Delay (seconds)",
+              "mobile_devices_frequent_sync": "Sync Mobile Devices Frequently",
+              "api_history_retention_days": "API History Retention (days)",
+              "test_mode_enabled": "Enable Test Mode (100 API call limit)"
+            },
+            "data_description": {
+              "hot_water_timer_duration": "Default duration when turning on hot water (5-1440 minutes, default: 60)",
+              "refresh_debounce_seconds": "Wait time before refreshing after changes (1-60 seconds, default: 15). Higher = fewer API calls",
+              "mobile_devices_frequent_sync": "Sync mobile devices on every quick sync instead of only during full sync (every 6 hours)",
+              "api_history_retention_days": "Days to keep API call history (0 = forever, default: 14)",
+              "test_mode_enabled": "Simulate post-grace period with 100 API call limit for testing"
+            }
+          }
         }
       }
     },

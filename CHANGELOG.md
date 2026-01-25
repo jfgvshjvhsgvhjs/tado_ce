@@ -2,6 +2,15 @@
 
 All notable changes to Tado CE will be documented in this file.
 
+## [1.6.1] - 2026-01-25
+
+**Hotfix Release** - Fixes critical v1.6.0 regression affecting all users.
+
+- **Fixed API Usage/Reset sensors showing 0** - Rate limit header parsing was case-sensitive, now fixed
+- Fixed timezone awareness for Day/Night polling hours
+- Added configurable refresh debounce delay (1-60 seconds, default 15)
+- Improved Options UI with collapsible sections (Features, Polling Schedule, Advanced)
+
 ## [1.6.0] - 2026-01-25
 
 - Deprecated `tado_api.py` - sync now uses native async API (faster, no subprocess overhead)
