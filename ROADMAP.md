@@ -2,32 +2,39 @@
 
 Feature requests and planned improvements for Tado CE.
 
-## Planned for v1.6.1
+## Planned for v1.6.2
 
-- [x] **Fix API Usage/Reset sensors showing 0** - Rate limit header parsing was case-sensitive (v1.6.0 regression)
-- [x] **Timezone awareness** - Day/Night Start Hour now uses Home Assistant's timezone ([#46](https://github.com/hiall-fyi/tado_ce/issues/46) - @hutten0)
-- [x] **Configurable refresh debounce delay** - Default 15 seconds (was 1s), configurable 1-60s in Options ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @neonsp)
-- [x] **Options page UI refinement** - Reorganized into collapsible sections (Features, Polling Schedule, Advanced Settings) for cleaner navigation
+- [x] **Comprehensive timezone fixes** - All timestamps now stored in UTC, displayed in Home Assistant's configured timezone ([#46](https://github.com/hiall-fyi/tado_ce/issues/46) - @hutten0)
+- [x] **Fix API call history not recording** - `async_api.py` was missing call tracking (v1.6.0 regression)
+- [x] **Fix blocking I/O warnings** - `api_call_tracker.py` now uses async file I/O via `run_in_executor`
+- [x] **Fix `get_call_history` bug** - Naive vs aware datetime comparison was silently failing
+- [x] **Fix thread leak on integration reload** - ThreadPoolExecutor now properly shutdown via `cleanup_executor()`
 
 ---
 
-## Multi-Home Support Roadmap (v1.7.0 → v2.0.0)
+## Planned for v1.7.0
+
+- [ ] **Optimistic state updates** - Immediate UI feedback when changing modes/temperature, with rollback on API failure ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @neonsp)
+
+---
+
+## Multi-Home Support Roadmap (v1.8.0 → v2.0.0)
 
 Gradual migration path to support multiple Tado homes simultaneously.
 
-### v1.7.0 - Unique ID Migration
+### v1.8.0 - Unique ID Migration
 
 - [ ] **Change integration unique_id** - From `tado_ce_integration` to `tado_ce_{home_id}`
 - [ ] **Auto-migration** - Existing entries automatically updated, no user action needed
 - [ ] **Backwards compatible** - Single home users unaffected
 
-### v1.8.0 - Data Files Migration
+### v1.9.0 - Data Files Migration
 
 - [ ] **Per-home data files** - `config_{home_id}.json`, `zones_{home_id}.json`, etc.
 - [ ] **Auto-migration** - Existing files renamed with home_id suffix
 - [ ] **Backwards compatible** - Falls back to legacy filenames if needed
 
-### v1.9.0 - Hub Device Migration
+### v1.10.0 - Hub Device Migration
 
 - [ ] **Change hub device identifier** - From `tado_ce_hub` to `tado_ce_hub_{home_id}`
 - [ ] **Device registry migration** - Existing hub device updated automatically
@@ -67,6 +74,13 @@ Investigating local API to reduce cloud dependency and API call usage.
 ---
 
 ## Completed
+
+### v1.6.1 (2026-01-25)
+
+- [x] **Fix API Usage/Reset sensors showing 0** - Rate limit header parsing was case-sensitive (v1.6.0 regression)
+- [x] **Timezone awareness** - Day/Night Start Hour now uses Home Assistant's timezone ([#46](https://github.com/hiall-fyi/tado_ce/issues/46) - @hutten0)
+- [x] **Configurable refresh debounce delay** - Default 15 seconds (was 1s), configurable 1-60s in Options ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @neonsp)
+- [x] **Options page UI refinement** - Reorganized into collapsible sections (Features, Polling Schedule, Advanced Settings) for cleaner navigation
 
 ### v1.6.0 (2026-01-25)
 

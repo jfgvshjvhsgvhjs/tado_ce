@@ -1071,6 +1071,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     from .immediate_refresh_handler import cleanup_handler
     cleanup_handler()
     
+    # Clean up API call tracker executor to prevent thread leaks
+    from .api_call_tracker import cleanup_executor
+    cleanup_executor()
+    
     # Unload platforms
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     

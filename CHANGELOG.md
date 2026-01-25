@@ -2,6 +2,21 @@
 
 All notable changes to Tado CE will be documented in this file.
 
+## [1.6.2] - 2026-01-25
+
+**Timezone Fixes & API Call Tracking** - Comprehensive timezone handling and async-safe file I/O.
+
+- **Fixed API call history not recording** - `async_api.py` was missing call tracking (v1.6.0 regression)
+- **Fixed `recent_calls` not showing local timezone** - API Limit sensor now converts timestamps correctly
+- **Fixed `call_history` timezone** - API Usage sensor timestamps now display in local timezone
+- **Fixed API call recording** - All timestamps now stored in UTC consistently
+- **Fixed meter reading date** - Now uses Home Assistant's configured timezone
+- **Fixed 24h call count calculation** - Now uses UTC for accurate counting
+- **Fixed blocking I/O warnings** - `api_call_tracker.py` now uses async file I/O via `run_in_executor`
+- **Fixed `get_call_history` bug** - Naive vs aware datetime comparison was silently failing
+- **Fixed rate limit file read** - `save_ratelimit()` now loads previous data asynchronously
+- **Fixed thread leak on integration reload** - Added `cleanup_executor()` to properly shutdown ThreadPoolExecutor
+
 ## [1.6.1] - 2026-01-25
 
 **Hotfix Release** - Fixes critical v1.6.0 regression affecting all users.

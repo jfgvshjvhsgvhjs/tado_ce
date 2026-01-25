@@ -4,6 +4,7 @@ This module provides async HTTP client functionality using aiohttp,
 replacing the blocking urllib-based calls for better Home Assistant integration.
 
 v1.6.0: Added async_sync() to replace subprocess-based tado_api.py sync.
+v1.6.2: Added API call tracking (was missing from v1.6.0 migration).
 """
 import json
 import logging
@@ -20,8 +21,62 @@ from .const import (
     OFFSETS_FILE, AC_CAPABILITIES_FILE, TADO_API_BASE, TADO_AUTH_URL, 
     CLIENT_ID, API_ENDPOINT_DEVICES
 )
+from .api_call_tracker import (
+    APICallTracker,
+    CALL_TYPE_ZONE_STATES,
+    CALL_TYPE_WEATHER,
+    CALL_TYPE_ZONES,
+    CALL_TYPE_MOBILE_DEVICES,
+    CALL_TYPE_OVERLAY,
+    CALL_TYPE_PRESENCE_LOCK,
+    CALL_TYPE_HOME_STATE
+)
 
 _LOGGER = logging.getLogger(__name__)
+
+# Global tracker instance
+_tracker: Optional[APICallTracker] = None
+_tracker_initialized = False
+
+def _get_tracker() -> Optional[APICallTracker]:
+    """Get or create the global API call tracker (lazy init, no file I/O)."""
+    global _tracker
+    if _tracker is None:
+        try:
+            from .config_manager import ConfigurationManager
+            config_manager = ConfigurationManager(None)
+            retention_days = config_manager.get_api_history_retention_days()
+        except:
+            retention_days = 14
+        _tracker = APICallTracker(DATA_DIR, retention_days=retention_days)
+    return _tracker
+
+async def _get_tracker_async() -> Optional[APICallTracker]:
+    """Get or create the global API call tracker with async initialization."""
+    global _tracker, _tracker_initialized
+    tracker = _get_tracker()
+    if tracker and not _tracker_initialized:
+        await tracker.async_init()
+        _tracker_initialized = True
+    return tracker
+
+def _detect_call_type(endpoint: str) -> Optional[int]:
+    """Detect API call type from endpoint."""
+    if "zoneStates" in endpoint:
+        return CALL_TYPE_ZONE_STATES
+    elif "weather" in endpoint:
+        return CALL_TYPE_WEATHER
+    elif "zones" in endpoint and "overlay" not in endpoint and "capabilities" not in endpoint:
+        return CALL_TYPE_ZONES
+    elif "mobileDevices" in endpoint:
+        return CALL_TYPE_MOBILE_DEVICES
+    elif "overlay" in endpoint:
+        return CALL_TYPE_OVERLAY
+    elif "presenceLock" in endpoint:
+        return CALL_TYPE_PRESENCE_LOCK
+    elif endpoint == "state":
+        return CALL_TYPE_HOME_STATE
+    return None
 
 
 class TadoAsyncClient:
@@ -83,7 +138,7 @@ class TadoAsyncClient:
         
         Expected format:
         - RateLimit-Policy: "perday";q=5000;w=86400
-        - RateLimit: "perday";r=4962
+        - RateLimit: "perday";r=4962;t=xxxxx (t= may not always be present)
         
         Note: Header names are case-sensitive in dict, so we do case-insensitive lookup.
         Tado may not always return 't=' (reset seconds).
@@ -97,6 +152,8 @@ class TadoAsyncClient:
                 policy = value
             elif key_lower == "ratelimit":
                 ratelimit = value
+        
+        _LOGGER.debug(f"Rate limit headers - policy: {policy}, ratelimit: {ratelimit}")
         
         # Parse limit from policy (q=5000)
         if "q=" in policy:
@@ -113,26 +170,47 @@ class TadoAsyncClient:
                 pass
         
         # Parse reset seconds from ratelimit (t=xxxxx) - may not always be present
+        # NOTE: Only use 't=' if present. Do NOT use 'w=' as fallback because
+        # w=86400 is the window size (24h), not the time until reset.
+        # If 't=' is missing, save_ratelimit() will use Strategy 2/3 to calculate.
         if "t=" in ratelimit:
             try:
                 self._rate_limit["reset_seconds"] = int(ratelimit.split("t=")[1].split(";")[0])
             except (ValueError, IndexError):
                 pass
-        elif "w=" in policy:
-            # Fallback: use window from policy as reset estimate
-            # w=86400 means 24 hour window
-            try:
-                window = int(policy.split("w=")[1].split(";")[0])
-                self._rate_limit["reset_seconds"] = window
-            except (ValueError, IndexError):
-                pass
+        else:
+            # Clear any stale reset_seconds so save_ratelimit uses fallback strategies
+            self._rate_limit.pop("reset_seconds", None)
+        
+        _LOGGER.debug(f"Parsed rate limit: {self._rate_limit}")
+    
+    def _load_ratelimit_sync(self) -> dict:
+        """Load rate limit file synchronously (for executor)."""
+        try:
+            if RATELIMIT_FILE.exists():
+                with open(RATELIMIT_FILE) as f:
+                    return json.load(f)
+        except:
+            pass
+        return {}
     
     async def save_ratelimit(self, status: str = "ok"):
         """Save current rate limit info to file for sensor updates.
         
+        Includes advanced reset detection from tado_api.py:
+        - Detects when rate limit resets (remaining increases significantly)
+        - Uses multiple strategies to calculate reset time
+        - Tracks last known reset time for accurate predictions
+        
         Args:
             status: Status string ("ok", "rate_limited", "error")
         """
+        now_utc = datetime.now(timezone.utc)
+        
+        # Load previous rate limit data to detect reset (async to avoid blocking)
+        loop = asyncio.get_event_loop()
+        prev_data = await loop.run_in_executor(None, self._load_ratelimit_sync)
+        
         # Use values from parsed headers, with sensible defaults
         limit = self._rate_limit.get("limit", 5000)
         remaining = self._rate_limit.get("remaining", 5000)
@@ -141,28 +219,143 @@ class TadoAsyncClient:
         used = limit - remaining
         percentage_used = round((used / limit) * 100, 1) if limit > 0 else 0
         
-        # Calculate reset time
+        # Get previous remaining and last known reset time
+        prev_remaining = prev_data.get("remaining")
+        last_reset_utc = prev_data.get("last_reset_utc")
+        
+        # Detect if rate limit has reset (remaining increased significantly)
+        if prev_remaining is not None and remaining is not None:
+            if remaining > prev_remaining + 100:  # Reset detected
+                last_reset_utc = now_utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+                _LOGGER.info(f"Rate limit reset detected at {last_reset_utc}")
+        
+        # Calculate reset time using multiple strategies
+        calculated_reset_seconds = None
+        
+        # Strategy 1: Use API-provided reset_seconds if available and valid
+        if reset_seconds and reset_seconds > 0:
+            calculated_reset_seconds = reset_seconds
+        
+        # Strategy 2: Calculate from last known reset time (rolling 24h window)
+        elif last_reset_utc:
+            try:
+                last_reset = datetime.fromisoformat(last_reset_utc.replace('Z', '+00:00'))
+                next_reset = last_reset + timedelta(hours=24)
+                seconds_until_reset = int((next_reset - now_utc).total_seconds())
+                
+                if seconds_until_reset > 0:
+                    calculated_reset_seconds = seconds_until_reset
+                else:
+                    _LOGGER.debug(f"Expected reset time passed ({abs(seconds_until_reset)}s ago), waiting for detection")
+            except Exception as e:
+                _LOGGER.debug(f"Failed to calculate reset from last_reset_utc: {e}")
+        
+        # Strategy 3: Estimate from call history
+        # Look at the first call of each day and find the most common time (mode).
+        # This filters out outliers like HA restarts at odd hours.
+        # The reset time is fixed (~11:24 UTC) based on when the account first made API calls.
+        if calculated_reset_seconds is None:
+            tracker = _get_tracker()
+            if tracker:
+                try:
+                    # Get first call of each day from history
+                    first_calls_by_day = {}
+                    all_calls = tracker.get_call_history(days=14)
+                    
+                    for call in all_calls:
+                        ts = call["timestamp"]
+                        call_time = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                        if call_time.tzinfo is None:
+                            call_time = call_time.replace(tzinfo=timezone.utc)
+                        
+                        date_key = call_time.strftime("%Y-%m-%d")
+                        if date_key not in first_calls_by_day or call_time < first_calls_by_day[date_key]:
+                            first_calls_by_day[date_key] = call_time
+                    
+                    if len(first_calls_by_day) >= 2:
+                        # Round each first call time to nearest hour and count occurrences
+                        hour_counts = {}
+                        for first_call in first_calls_by_day.values():
+                            # Round to nearest hour
+                            hour = first_call.hour
+                            if first_call.minute >= 30:
+                                hour = (hour + 1) % 24
+                            hour_counts[hour] = hour_counts.get(hour, 0) + 1
+                        
+                        # Find most common hour (mode) - require at least 2 occurrences
+                        # to filter out outliers when we have limited data
+                        most_common_hour = max(hour_counts, key=hour_counts.get)
+                        most_common_count = hour_counts[most_common_hour]
+                        
+                        # If no hour has >= 2 occurrences, we don't have enough data
+                        if most_common_count < 2:
+                            _LOGGER.debug(f"Not enough data for mode calculation ({len(first_calls_by_day)} days, no hour with 2+ occurrences)")
+                        else:
+                            # Get average minute from calls in that hour range
+                            minutes_in_hour = []
+                            for first_call in first_calls_by_day.values():
+                                call_hour = first_call.hour
+                                if first_call.minute >= 30:
+                                    call_hour = (call_hour + 1) % 24
+                                if call_hour == most_common_hour:
+                                    # Use actual hour:minute for averaging
+                                    minutes_in_hour.append(first_call.hour * 60 + first_call.minute)
+                            
+                            if minutes_in_hour:
+                                avg_minutes = sum(minutes_in_hour) // len(minutes_in_hour)
+                                reset_hour = avg_minutes // 60
+                                reset_minute = avg_minutes % 60
+                                
+                                # Calculate next reset
+                                today_reset = now_utc.replace(
+                                    hour=reset_hour,
+                                    minute=reset_minute,
+                                    second=0,
+                                    microsecond=0
+                                )
+                                
+                                if today_reset <= now_utc:
+                                    next_reset = today_reset + timedelta(days=1)
+                                else:
+                                    next_reset = today_reset
+                                
+                                seconds_until_reset = int((next_reset - now_utc).total_seconds())
+                                if seconds_until_reset > 0:
+                                    calculated_reset_seconds = seconds_until_reset
+                                    _LOGGER.debug(
+                                        f"Estimated reset at {reset_hour:02d}:{reset_minute:02d} UTC "
+                                    f"(mode from {len(first_calls_by_day)} days, {hour_counts.get(most_common_hour, 0)} matches)"
+                                )
+                except Exception as e:
+                    _LOGGER.debug(f"Failed to estimate reset from call history: {e}")
+        
+        # Format reset time for display
         reset_at = None
         reset_human = None
-        if reset_seconds > 0:
-            reset_dt = datetime.now(timezone.utc) + timedelta(seconds=reset_seconds)
+        if calculated_reset_seconds and calculated_reset_seconds > 0:
+            hours = calculated_reset_seconds // 3600
+            minutes = (calculated_reset_seconds % 3600) // 60
+            reset_human = f"{hours}h {minutes}m" if hours > 0 else f"{minutes}m"
+            reset_dt = now_utc + timedelta(seconds=calculated_reset_seconds)
             reset_at = reset_dt.isoformat()
-            hours = reset_seconds // 3600
-            minutes = (reset_seconds % 3600) // 60
-            if hours > 0:
-                reset_human = f"{hours}h {minutes}m"
-            else:
-                reset_human = f"{minutes}m"
+            reset_seconds = calculated_reset_seconds
+        
+        # Update status based on usage
+        if remaining == 0:
+            status = "rate_limited"
+        elif percentage_used > 80:
+            status = "warning"
         
         data = {
             "limit": limit,
             "remaining": remaining,
             "used": used,
             "percentage_used": percentage_used,
-            "reset_seconds": reset_seconds,
+            "reset_seconds": reset_seconds if reset_seconds else None,
             "reset_at": reset_at,
             "reset_human": reset_human,
-            "last_updated": datetime.now(timezone.utc).isoformat(),
+            "last_updated": now_utc.isoformat(),
+            "last_reset_utc": last_reset_utc,
             "status": status
         }
         
@@ -290,11 +483,19 @@ class TadoAsyncClient:
         url = f"{TADO_API_BASE}/homes/{home_id}/{endpoint}"
         headers = {"Authorization": f"Bearer {token}"}
         
+        # Detect call type for tracking
+        call_type = _detect_call_type(endpoint)
+        tracker = await _get_tracker_async()
+        
         try:
             if method == "GET":
                 async with self._session.get(url, headers=headers) as resp:
                     if parse_ratelimit:
                         self._parse_ratelimit_headers(dict(resp.headers))
+                    
+                    # Track the call asynchronously
+                    if tracker and call_type:
+                        await tracker.async_record_call(call_type, resp.status)
                     
                     if resp.status == 401:
                         _LOGGER.warning("Token expired, invalidating cache")
@@ -320,6 +521,10 @@ class TadoAsyncClient:
                     if parse_ratelimit:
                         self._parse_ratelimit_headers(dict(resp.headers))
                     
+                    # Track the call asynchronously
+                    if tracker and call_type:
+                        await tracker.async_record_call(call_type, resp.status)
+                    
                     if resp.status in (200, 201, 204):
                         if resp.content_length and resp.content_length > 0:
                             return await resp.json()
@@ -333,6 +538,9 @@ class TadoAsyncClient:
                     if parse_ratelimit:
                         self._parse_ratelimit_headers(dict(resp.headers))
                     
+                    # Track the call asynchronously
+                    if tracker and call_type:
+                        await tracker.async_record_call(call_type, resp.status)
                     if resp.status in (200, 204):
                         return {}
                     
@@ -414,10 +622,15 @@ class TadoAsyncClient:
         }
         
         payload = {"setting": setting, "termination": termination}
+        tracker = await _get_tracker_async()
         
         try:
             async with self._session.put(url, headers=headers, json=payload) as resp:
                 self._parse_ratelimit_headers(dict(resp.headers))
+                
+                # Track the call asynchronously
+                if tracker:
+                    await tracker.async_record_call(CALL_TYPE_OVERLAY, resp.status)
                 
                 if resp.status in (200, 201):
                     return True
@@ -445,10 +658,15 @@ class TadoAsyncClient:
         
         url = f"{TADO_API_BASE}/homes/{home_id}/zones/{zone_id}/overlay"
         headers = {"Authorization": f"Bearer {token}"}
+        tracker = await _get_tracker_async()
         
         try:
             async with self._session.delete(url, headers=headers) as resp:
                 self._parse_ratelimit_headers(dict(resp.headers))
+                
+                # Track the call asynchronously
+                if tracker:
+                    await tracker.async_record_call(CALL_TYPE_OVERLAY, resp.status)
                 
                 if resp.status in (200, 204):
                     return True
@@ -476,12 +694,17 @@ class TadoAsyncClient:
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
+        tracker = await _get_tracker_async()
         
         try:
             async with self._session.put(
                 url, headers=headers, json={"homePresence": state}
             ) as resp:
                 self._parse_ratelimit_headers(dict(resp.headers))
+                
+                # Track the call asynchronously
+                if tracker:
+                    await tracker.async_record_call(CALL_TYPE_PRESENCE_LOCK, resp.status)
                 
                 if resp.status in (200, 204):
                     _LOGGER.info(f"Presence lock set to {state}")
@@ -706,7 +929,12 @@ class TadoAsyncClient:
             return False
         
         if not date:
-            date = datetime.now().strftime("%Y-%m-%d")
+            # Use Home Assistant's timezone for local date
+            try:
+                from homeassistant.util import dt as dt_util
+                date = dt_util.now().strftime("%Y-%m-%d")
+            except ImportError:
+                date = datetime.now().strftime("%Y-%m-%d")
         
         url = f"{TADO_API_BASE}/homes/{home_id}/meterReadings"
         headers = {

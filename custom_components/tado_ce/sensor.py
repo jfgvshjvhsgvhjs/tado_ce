@@ -442,6 +442,8 @@ class TadoApiLimitSensor(SensorEntity):
             # Load recent API calls from history (last 100 calls only to avoid DB size issues)
             try:
                 from datetime import datetime, timedelta
+                from homeassistant.util import dt as dt_util
+                
                 with open(API_CALL_HISTORY_FILE) as f:
                     history = json.load(f)
                     
@@ -452,14 +454,28 @@ class TadoApiLimitSensor(SensorEntity):
                     
                     # Sort by timestamp (newest first) and take last 100
                     all_calls.sort(key=lambda x: x["timestamp"], reverse=True)
-                    recent_calls = all_calls[:100]
+                    raw_recent_calls = all_calls[:100]
+                    
+                    # Convert timestamps to local timezone for display
+                    recent_calls = []
+                    for call in raw_recent_calls:
+                        call_copy = call.copy()
+                        try:
+                            ts = datetime.fromisoformat(call["timestamp"])
+                            if ts.tzinfo is None:
+                                ts = ts.replace(tzinfo=dt_util.UTC)
+                            local_ts = dt_util.as_local(ts)
+                            call_copy["timestamp"] = local_ts.strftime("%Y-%m-%d %H:%M:%S")
+                        except Exception:
+                            pass
+                        recent_calls.append(call_copy)
                     
                     # Count calls from last 24 hours for statistics
-                    now = datetime.now()
+                    now = datetime.now(dt_util.UTC)
                     cutoff = now - timedelta(hours=24)
                     last_24h_count = sum(
                         1 for call in all_calls
-                        if datetime.fromisoformat(call["timestamp"]) > cutoff
+                        if datetime.fromisoformat(call["timestamp"]).replace(tzinfo=dt_util.UTC) > cutoff
                     )
                     
                     self._attr_extra_state_attributes = {
