@@ -816,7 +816,7 @@ class TadoAsyncClient:
         mobile_devices_enabled: bool = True,
         mobile_devices_frequent_sync: bool = False,
         offset_enabled: bool = False,
-        home_state_sync_enabled: bool = True
+        home_state_sync_enabled: bool = False
     ) -> bool:
         """Perform async data sync from Tado API.
         

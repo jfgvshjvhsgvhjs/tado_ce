@@ -9,7 +9,7 @@ from typing import Any
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -144,6 +144,49 @@ class TadoZoneScheduleCalendar(CalendarEntity):
         self._attr_icon = "mdi:calendar-clock"
         
         self._event: CalendarEvent | None = None
+        self._unsub_schedule_update = None
+    
+    async def async_added_to_hass(self) -> None:
+        """Register event listener when entity is added."""
+        await super().async_added_to_hass()
+        
+        @callback
+        def _handle_schedule_update(event):
+            """Handle schedule update event from Refresh Schedule button."""
+            event_zone_id = event.data.get("zone_id")
+            if event_zone_id == self._zone_id:
+                _LOGGER.debug(f"Schedule update event received for {self._zone_name}")
+                # Reload schedule from file and trigger update
+                self.hass.async_create_task(self._async_reload_schedule())
+        
+        self._unsub_schedule_update = self.hass.bus.async_listen(
+            f"{DOMAIN}_schedule_updated", _handle_schedule_update
+        )
+    
+    async def async_will_remove_from_hass(self) -> None:
+        """Unregister event listener when entity is removed."""
+        if self._unsub_schedule_update:
+            self._unsub_schedule_update()
+            self._unsub_schedule_update = None
+        await super().async_will_remove_from_hass()
+    
+    async def _async_reload_schedule(self) -> None:
+        """Reload schedule from file after Refresh Schedule button press."""
+        def _load():
+            if SCHEDULES_FILE.exists():
+                with open(SCHEDULES_FILE) as f:
+                    return json.load(f)
+            return {}
+        
+        try:
+            schedules = await self.hass.async_add_executor_job(_load)
+            if self._zone_id in schedules:
+                self._schedule = schedules[self._zone_id]
+                _LOGGER.info(f"Reloaded schedule for {self._zone_name}")
+                # Trigger state update
+                self.async_write_ha_state()
+        except Exception as e:
+            _LOGGER.error(f"Failed to reload schedule for {self._zone_name}: {e}")
     
     @property
     def event(self) -> CalendarEvent | None:

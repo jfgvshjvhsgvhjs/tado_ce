@@ -4,6 +4,32 @@
 
 ---
 
+## v1.8.0 (2026-01-26) - Schedule Calendar & Multi-Home Data
+
+### Feature Contributors
+
+**Schedule Calendar** - [Discussion #51](https://github.com/hiall-fyi/tado_ce/discussions/51)
+- Per-zone calendar entities showing heating schedules from Tado app
+- Opt-in feature to minimize API calls
+
+### Bug Reports & Issue Reporters
+
+**[@ChrisMarriott38](https://github.com/ChrisMarriott38)** - [Issue #54](https://github.com/hiall-fyi/tado_ce/issues/54), [Issue #55](https://github.com/hiall-fyi/tado_ce/issues/55)
+- Requested `last_reset` and `reset_at` attributes on API Reset sensor
+- Suggested Home State Sync should default to OFF (consistent with Weather/Mobile Devices)
+- Helped maintain API-saving defaults across all optional features
+
+### What Was Added/Fixed
+
+- ✅ **NEW**: Schedule Calendar - per-zone calendar entities (opt-in)
+- ✅ **NEW**: Per-zone Refresh Schedule button
+- ✅ **NEW**: API Reset sensor `reset_at` and `last_reset` attributes ([#54](https://github.com/hiall-fyi/tado_ce/issues/54))
+- ✅ Multi-home prep: Per-home data files (`zones_{home_id}.json`)
+- ✅ Auto-migration for existing data files
+- ✅ **Issue #55**: Home State Sync default changed to OFF
+
+---
+
 ## v1.7.0 (2026-01-26) - Multi-Home Preparation
 
 ### Bug Reports & Feature Contributors

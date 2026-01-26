@@ -238,7 +238,7 @@ class ConfigurationManager:
         Returns:
             True if home state should be synced, False to save API calls
         """
-        return self._options.get('home_state_sync_enabled', True)
+        return self._options.get('home_state_sync_enabled', False)
     
     def get_test_mode_enabled(self) -> bool:
         """Check if Test Mode is enabled (enforce 100 API limit).

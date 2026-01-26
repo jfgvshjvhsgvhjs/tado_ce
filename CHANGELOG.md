@@ -2,6 +2,18 @@
 
 All notable changes to Tado CE will be documented in this file.
 
+## [1.8.0] - 2026-01-26
+
+**Multi-Home Data Migration + Schedule Calendar** - Per-home data files and heating schedule visualization.
+
+- **NEW: Schedule Calendar** - Per-zone calendar entities showing heating schedules from Tado app (opt-in in Options)
+- **NEW: Per-zone Refresh Schedule button** - Refresh individual zone schedules on demand
+- **NEW: API Reset sensor attributes** - Added `reset_at` and `last_reset` attributes showing actual times ([#54](https://github.com/hiall-fyi/tado_ce/issues/54) - @ChrisMarriott38)
+- **Multi-home prep: Per-home data files** - Data files now use `{filename}_{home_id}.json` format
+- **Auto-migration** - Existing files automatically renamed with home_id suffix
+- **Schedules cached locally** - Fetched once on startup, stored in `schedules.json`
+- **Changed Home State Sync default to OFF** - Consistent with Weather/Mobile Devices defaults to save API calls ([#55](https://github.com/hiall-fyi/tado_ce/issues/55) - @ChrisMarriott38)
+
 ## [1.7.0] - 2026-01-26
 
 **Multi-Home Preparation** - Foundation for future multi-home support with UX improvements.

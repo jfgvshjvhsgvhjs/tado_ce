@@ -6,7 +6,7 @@
 ![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.1.3-blue?style=for-the-badge&logo=home-assistant) ![Tado](https://img.shields.io/badge/Tado-V3%2FV3%2B-orange?style=for-the-badge) ![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge)
 
 <!-- Status Badges -->
-![Version](https://img.shields.io/badge/Version-1.7.0-purple?style=for-the-badge) ![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=for-the-badge) ![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=for-the-badge) ![Tests](https://img.shields.io/badge/Tests-235%20Passing-success?style=for-the-badge)
+![Version](https://img.shields.io/badge/Version-1.8.0-purple?style=for-the-badge) ![License](https://img.shields.io/badge/License-AGPL--3.0-blue?style=for-the-badge) ![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=for-the-badge) ![Tests](https://img.shields.io/badge/Tests-235%20Passing-success?style=for-the-badge)
 
 <!-- Community Badges -->
 ![GitHub stars](https://img.shields.io/github/stars/hiall-fyi/tado_ce?style=for-the-badge&logo=github) ![GitHub forks](https://img.shields.io/github/forks/hiall-fyi/tado_ce?style=for-the-badge&logo=github) ![GitHub issues](https://img.shields.io/github/issues/hiall-fyi/tado_ce?style=for-the-badge&logo=github) ![GitHub last commit](https://img.shields.io/github/last-commit/hiall-fyi/tado_ce?style=for-the-badge&logo=github)
@@ -65,12 +65,13 @@ Full climate, AC, hot water control with timer support, geofencing, presence det
 | **Smart Day/Night Polling** | More frequent during day, less at night to save API calls |
 | **Customizable Polling** | Configure day/night hours and custom polling intervals |
 | **Multi-Home Selection** | Select which home to configure during setup |
-| **Optional Weather/Mobile** | Toggle sensors on/off to save API calls |
+| **Optional Weather/Mobile/Home State** | Toggle sensors on/off to save API calls |
 | **API Call History** | Track all API calls with configurable retention |
 | **Immediate Refresh** | Dashboard updates immediately after user actions |
 | **Enhanced Hot Water** | AUTO/HEAT/OFF modes with timer presets (30/60/90 min) |
 | **Boiler Flow Temp** | Auto-detected sensor for OpenTherm systems |
 | **Zone-Based Devices** | Each zone as separate device with cleaner entity names |
+| **Schedule Calendar** | View heating schedules as calendar events (opt-in) |
 | **Full Async Architecture** | Non-blocking API calls for better responsiveness |
 | **Test Mode** | Simulate 100 call limit for testing |
 
@@ -159,6 +160,14 @@ After installation, you can configure Tado CE by clicking the **gear icon** on t
 - **Unchecked** (default): Mobile devices sync every 6 hours (full sync only)
 - **Checked**: Mobile devices sync every quick sync - useful for presence-based automations
 
+**Enable Home State Sync** (v1.7.0)
+- **Unchecked** (default): Home/Away state not synced, saves 1 API call per quick sync
+- **Checked**: Syncs home presence state - required for Away Mode switch and Climate presets
+
+**Enable Schedule Calendar** (v1.8.0)
+- **Unchecked** (default): No calendar entities
+- **Checked**: Creates calendar entities showing heating schedules from Tado app
+
 **Enable Temperature Offset Attribute** (v1.5.0)
 - **Unchecked** (default): No offset attribute on climate entities
 - **Checked**: Adds `offset_celsius` attribute to climate entities (synced every 6 hours, uses 1 API call per device)
@@ -171,6 +180,11 @@ After installation, you can configure Tado CE by clicking the **gear icon** on t
 - **Default**: 14 days
 - **0**: Keep forever
 - **Number**: Days to keep API call history
+
+**Refresh Debounce Delay (seconds)** (v1.6.1)
+- **Default**: 15 seconds
+- **Range**: 1-60 seconds
+- Delay before refreshing after user actions (prevents multiple API calls when changing several zones)
 
 #### Polling Configuration (v1.2.0)
 
@@ -263,6 +277,8 @@ Once set up, you'll see your Tado zones organized as separate devices with clean
 | `button.{zone}_timer_90min` | Quick 90-minute hot water timer |
 | `button.tado_ce_resume_all_schedules` | Resume schedules for all zones (delete all overlays) - Hub |
 | `device_tracker.tado_ce_{device}` | Mobile device presence - Hub |
+| `calendar.{zone}` | Heating schedule calendar (opt-in) - Zone |
+| `button.{zone}_refresh_schedule` | Refresh zone schedule from Tado (opt-in) - Zone |
 
 The water heater entity supports three operation modes:
 
@@ -539,7 +555,7 @@ Stay caffeinated while coding!
 
 ---
 
-**Version**: 1.7.0  
+**Version**: 1.8.0  
 **Last Updated**: 2026-01-26  
 **Tested On**: Home Assistant 2026.1.3 (HAOS, Docker, Core)
 

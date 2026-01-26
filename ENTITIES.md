@@ -2,6 +2,20 @@
 
 Complete list of all entities created by Tado CE integration.
 
+## 📋 v1.8.0 Changes
+
+### Schedule Calendar (Optional)
+- **Per-zone calendar entities**: View heating schedules from Tado app as calendar events
+- **Read-only**: Displays schedules, cannot modify from HA
+- **Enable in Options**: Creates calendar entities for each heating zone
+- **Refresh Schedule button**: Per-zone button to refresh schedule from Tado API
+
+### API Reset Sensor Enhancements
+- **New `reset_at` attribute**: Shows when next reset will happen (local time)
+- **New `last_reset` attribute**: Shows when last reset happened (local time)
+
+---
+
 ## 📋 v1.5.0 Changes
 
 ### Climate Entity Enhancements
@@ -59,6 +73,19 @@ Complete list of all entities created by Tado CE integration.
 
 ---
 
+## Schedule Calendar (v1.8.0)
+
+**Optional feature** - Enable in integration options.
+
+| Entity | Type | Description | API Calls |
+|--------|------|-------------|-----------|
+| `calendar.{zone}` | Calendar | Heating schedule for zone | ~1 per zone on startup |
+| `button.{zone}_refresh_schedule` | Button | Refresh schedule from Tado API | ~1 per press |
+
+**Note:** Calendar entities only created for HEATING zones. Schedules are cached locally and only fetched on startup or when Refresh Schedule button is pressed.
+
+---
+
 ## Hub Sensors
 
 Global sensors for the Tado CE Hub device.
@@ -68,6 +95,19 @@ Global sensors for the Tado CE Hub device.
 | `sensor.tado_ce_home_id` | Diagnostic | Your Tado home ID |
 | `sensor.tado_ce_api_usage` | Sensor | API calls used (e.g. "142/5000") |
 | `sensor.tado_ce_api_reset` | Sensor | Time until rate limit resets (e.g. "5h 30m") |
+
+### API Reset Sensor Attributes (v1.8.0)
+
+| Attribute | Example | Description |
+|-----------|---------|-------------|
+| `time_until_reset` | `5h 30m` | Human-readable countdown |
+| `reset_seconds` | `19800` | Seconds until reset |
+| `reset_at` | `2026-01-27 11:24:00` | When next reset will happen (local time) |
+| `last_reset` | `2026-01-26 11:24:00` | When last reset happened (local time) |
+| `status` | `ok` | API status |
+| `next_poll` | `2026-01-26 15:30:00` | Next scheduled poll time |
+| `current_interval_minutes` | `30` | Current polling interval |
+
 | `sensor.tado_ce_api_limit` | Diagnostic | Your daily API call limit |
 | `sensor.tado_ce_api_status` | Diagnostic | API status (ok/warning/rate_limited) |
 | `sensor.tado_ce_token_status` | Diagnostic | Token status (valid/expired) |

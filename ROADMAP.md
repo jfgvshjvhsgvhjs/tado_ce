@@ -6,7 +6,7 @@ For completed features, see [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
-## v1.8.0 - Data Files Migration + Schedule Calendar ✅ READY
+## v1.8.0 - Data Files Migration + Schedule Calendar ✅ RELEASED
 
 Per-home data files plus heating schedule visualization.
 
@@ -21,9 +21,11 @@ Per-home data files plus heating schedule visualization.
 - [x] **Optional feature** - Enable in Options (~1 API call per heating zone on startup)
 - [x] **Stored locally** - Schedules cached in `schedules.json`, no repeated API calls
 - [x] **Per-zone Refresh Schedule button** - Refresh individual zone schedules on demand
+- [x] **Instant calendar update** - Calendar refreshes immediately when Refresh Schedule button pressed
 
 **Other:**
 - [x] **Home State Sync default OFF** - Consistent with Weather/Mobile Devices ([#55](https://github.com/hiall-fyi/tado_ce/issues/55) - @ChrisMarriott38)
+- [x] **API Reset sensor attributes** - Added `reset_at` and `last_reset` showing actual times ([#54](https://github.com/hiall-fyi/tado_ce/issues/54) - @ChrisMarriott38)
 
 ---
 

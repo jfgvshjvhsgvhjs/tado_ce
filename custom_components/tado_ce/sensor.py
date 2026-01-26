@@ -331,6 +331,8 @@ class TadoApiResetSensor(SensorEntity):
         self._attr_native_value = None
         self._reset_human = None
         self._reset_seconds = None
+        self._reset_at = None  # v1.8.0: Actual reset time string
+        self._last_reset = None  # v1.8.0: Last reset time string
         self._status = None
         self._next_poll = None
         self._current_interval = None
@@ -340,6 +342,8 @@ class TadoApiResetSensor(SensorEntity):
         return {
             "time_until_reset": self._reset_human,
             "reset_seconds": self._reset_seconds,
+            "reset_at": self._reset_at,  # v1.8.0: When next reset will happen
+            "last_reset": self._last_reset,  # v1.8.0: When last reset happened
             "status": self._status,
             "next_poll": self._next_poll,
             "current_interval_minutes": self._current_interval,
@@ -348,6 +352,7 @@ class TadoApiResetSensor(SensorEntity):
     def update(self):
         try:
             from datetime import datetime, timezone, timedelta
+            from homeassistant.util import dt as dt_util
             
             with open(RATELIMIT_FILE) as f:
                 data = json.load(f)
@@ -356,19 +361,38 @@ class TadoApiResetSensor(SensorEntity):
             self._reset_seconds = data.get("reset_seconds")
             self._status = data.get("status", "unknown")
             
+            # v1.8.0: Format reset_at as local time string for attribute
             reset_at = data.get("reset_at")
             if reset_at and reset_at != "unknown":
                 try:
                     reset_time = datetime.fromisoformat(reset_at.replace('Z', '+00:00'))
                     self._attr_native_value = reset_time
                     self._attr_available = True
+                    # Format as local time for attribute
+                    reset_local = dt_util.as_local(reset_time)
+                    self._reset_at = reset_local.strftime("%Y-%m-%d %H:%M:%S")
                 except Exception as e:
                     _LOGGER.debug(f"Failed to parse reset_at: {e}")
                     self._attr_native_value = None
                     self._attr_available = False
+                    self._reset_at = None
             else:
                 self._attr_native_value = None
                 self._attr_available = False
+                self._reset_at = None
+            
+            # v1.8.0: Format last_reset_utc as local time string for attribute
+            last_reset_utc = data.get("last_reset_utc")
+            if last_reset_utc:
+                try:
+                    last_reset_time = datetime.fromisoformat(last_reset_utc.replace('Z', '+00:00'))
+                    last_reset_local = dt_util.as_local(last_reset_time)
+                    self._last_reset = last_reset_local.strftime("%Y-%m-%d %H:%M:%S")
+                except Exception as e:
+                    _LOGGER.debug(f"Failed to parse last_reset_utc: {e}")
+                    self._last_reset = None
+            else:
+                self._last_reset = None
             
             # Calculate next poll time
             try:

@@ -458,7 +458,7 @@ class TadoCEOptionsFlow(config_entries.OptionsFlow):
                     vol.Schema({
                         vol.Optional('weather_enabled', default=options.get('weather_enabled', False)): BooleanSelector(),
                         vol.Optional('mobile_devices_enabled', default=options.get('mobile_devices_enabled', False)): BooleanSelector(),
-                        vol.Optional('home_state_sync_enabled', default=options.get('home_state_sync_enabled', True)): BooleanSelector(),
+                        vol.Optional('home_state_sync_enabled', default=options.get('home_state_sync_enabled', False)): BooleanSelector(),
                         vol.Optional('offset_enabled', default=options.get('offset_enabled', False)): BooleanSelector(),
                         vol.Optional('schedule_calendar_enabled', default=options.get('schedule_calendar_enabled', False)): BooleanSelector(),
                     }),

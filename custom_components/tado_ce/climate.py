@@ -182,6 +182,10 @@ class TadoClimate(ClimateEntity):
         self._heating_power = None
         self._offset_celsius = None  # Temperature offset (optional, enabled in config)
         self._attr_preset_mode = PRESET_HOME
+        
+        # Optimistic update - track when optimistic state was set
+        # update() will skip if within debounce window (default 15s)
+        self._optimistic_set_at: float | None = None
 
     @property
     def extra_state_attributes(self):
@@ -198,6 +202,19 @@ class TadoClimate(ClimateEntity):
 
     def update(self):
         """Update climate state from JSON file."""
+        # Skip update if within optimistic debounce window (default 15s)
+        if self._optimistic_set_at is not None:
+            import time
+            elapsed = time.time() - self._optimistic_set_at
+            # Get debounce delay from config (default 15s) + 2s buffer
+            debounce_window = 17.0  # 15s debounce + 2s buffer
+            if elapsed < debounce_window:
+                _LOGGER.debug(f"Skipping update for {self._zone_name} - optimistic update {elapsed:.1f}s ago (window: {debounce_window}s)")
+                return
+            else:
+                # Clear optimistic state after window expires
+                self._optimistic_set_at = None
+        
         try:
             # Load home_id from config
             with open(CONFIG_FILE) as f:
@@ -341,6 +358,17 @@ class TadoClimate(ClimateEntity):
         if temperature is None:
             return
         
+        # Optimistic update BEFORE API call
+        old_temp = self._attr_target_temperature
+        old_mode = self._attr_hvac_mode
+        self._attr_target_temperature = temperature
+        self._attr_hvac_mode = HVACMode.HEAT
+        self._overlay_type = "MANUAL"
+        import time
+        self._optimistic_set_at = time.time()  # Track when optimistic state was set
+        _LOGGER.debug(f"Optimistic update: {self._zone_name} target_temp={temperature}")
+        self.async_write_ha_state()
+        
         client = get_async_client(self.hass)
         setting = {
             "type": "HEATING",
@@ -350,15 +378,20 @@ class TadoClimate(ClimateEntity):
         termination = {"type": "MANUAL"}
         
         if await client.set_zone_overlay(self._zone_id, setting, termination):
-            self._attr_target_temperature = temperature
-            self._attr_hvac_mode = HVACMode.HEAT
-            self._overlay_type = "MANUAL"
-            self.async_write_ha_state()  # Optimistic update
             _LOGGER.info(f"Set {self._zone_name} to {temperature}°C")
             await self._async_trigger_immediate_refresh("temperature_change")
+            # Don't clear _optimistic_set_at here - let it expire naturally after debounce window
+        else:
+            # Rollback on failure
+            _LOGGER.warning(f"ROLLBACK: {self._zone_name} API call failed, reverting to {old_temp}")
+            self._attr_target_temperature = old_temp
+            self._attr_hvac_mode = old_mode
+            self._optimistic_set_at = None  # Clear on failure to allow immediate update
+            self.async_write_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode):
         """Set new HVAC mode."""
+        import time
         client = get_async_client(self.hass)
         
         if hvac_mode == HVACMode.HEAT:
@@ -370,11 +403,20 @@ class TadoClimate(ClimateEntity):
             }
             termination = {"type": "MANUAL"}
             
+            # Optimistic update BEFORE API call
+            old_mode = self._attr_hvac_mode
+            self._attr_hvac_mode = HVACMode.HEAT
+            self._overlay_type = "MANUAL"
+            self._optimistic_set_at = time.time()
+            self.async_write_ha_state()
+            
             if await client.set_zone_overlay(self._zone_id, setting, termination):
-                self._attr_hvac_mode = HVACMode.HEAT
-                self._overlay_type = "MANUAL"
-                self.async_write_ha_state()  # Optimistic update
                 await self._async_trigger_immediate_refresh("hvac_mode_change")
+            else:
+                # Rollback on failure
+                self._attr_hvac_mode = old_mode
+                self._optimistic_set_at = None
+                self.async_write_ha_state()
                 
         elif hvac_mode == HVACMode.OFF:
             setting = {
@@ -383,19 +425,41 @@ class TadoClimate(ClimateEntity):
             }
             termination = {"type": "MANUAL"}
             
+            # Optimistic update BEFORE API call
+            old_mode = self._attr_hvac_mode
+            old_action = self._attr_hvac_action
+            self._attr_hvac_mode = HVACMode.OFF
+            self._attr_hvac_action = HVACAction.OFF
+            self._overlay_type = "MANUAL"
+            self._optimistic_set_at = time.time()
+            self.async_write_ha_state()
+            
             if await client.set_zone_overlay(self._zone_id, setting, termination):
-                self._attr_hvac_mode = HVACMode.OFF
-                self._attr_hvac_action = HVACAction.OFF
-                self._overlay_type = "MANUAL"
-                self.async_write_ha_state()  # Optimistic update
                 await self._async_trigger_immediate_refresh("hvac_mode_change")
+            else:
+                # Rollback on failure
+                self._attr_hvac_mode = old_mode
+                self._attr_hvac_action = old_action
+                self._optimistic_set_at = None
+                self.async_write_ha_state()
                 
         elif hvac_mode == HVACMode.AUTO:
+            # Optimistic update BEFORE API call
+            old_mode = self._attr_hvac_mode
+            old_overlay = self._overlay_type
+            self._attr_hvac_mode = HVACMode.AUTO
+            self._overlay_type = None
+            self._optimistic_set_at = time.time()
+            self.async_write_ha_state()
+            
             if await client.delete_zone_overlay(self._zone_id):
-                self._attr_hvac_mode = HVACMode.AUTO
-                self._overlay_type = None
-                self.async_write_ha_state()  # Optimistic update
                 await self._async_trigger_immediate_refresh("hvac_mode_change")
+            else:
+                # Rollback on failure
+                self._attr_hvac_mode = old_mode
+                self._overlay_type = old_overlay
+                self._optimistic_set_at = None
+                self.async_write_ha_state()
     
     async def _async_trigger_immediate_refresh(self, reason: str):
         """Trigger immediate refresh after state change."""
