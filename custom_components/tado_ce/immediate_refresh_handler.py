@@ -183,7 +183,7 @@ class ImmediateRefreshHandler:
         
         return True
     
-    async def trigger_refresh(self, entity_id: str, reason: str = "state_change"):
+    async def trigger_refresh(self, entity_id: str, reason: str = "state_change", force: bool = False):
         """Trigger immediate refresh for an entity.
         
         Uses debouncing to batch multiple rapid changes into a single refresh.
@@ -191,8 +191,9 @@ class ImmediateRefreshHandler:
         Args:
             entity_id: Entity ID that triggered the refresh
             reason: Reason for refresh (for logging)
+            force: If True, skip entity type check (for buttons like Resume All Schedules)
         """
-        if not self.should_refresh(entity_id):
+        if not force and not self.should_refresh(entity_id):
             _LOGGER.debug(f"Entity {entity_id} does not trigger immediate refresh")
             return
         

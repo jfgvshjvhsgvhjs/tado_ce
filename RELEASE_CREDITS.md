@@ -12,9 +12,13 @@
 - Reported AC zones still bouncing back after v1.8.0
 - Identified that AC class was missing optimistic update protection
 
+**[@hapklaar](https://github.com/hapklaar)** - [Issue #44](https://github.com/hiall-fyi/tado_ce/issues/44)
+- Reported Resume All Schedules button not refreshing climate entities
+
 ### What Was Fixed
 
 - ✅ **Issue #44**: AC optimistic updates - AC zones now have same protection as heating zones
+- ✅ **Issue #44**: Resume All Schedules refresh - button now properly triggers immediate refresh
 - ✅ AC state changes (temperature, mode, fan, swing) update immediately without bouncing back
 
 ---

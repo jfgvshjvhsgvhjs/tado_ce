@@ -4,9 +4,10 @@ All notable changes to Tado CE will be documented in this file.
 
 ## [1.8.1] - 2026-01-26
 
-**Hotfix: AC Optimistic Updates** - Fixed optimistic state updates for AC zones.
+**Hotfix: AC Optimistic Updates & Resume All Schedules** - Fixed optimistic state updates for AC zones and Resume All Schedules refresh.
 
 - **Fixed AC optimistic updates not working** - AC zones now have the same optimistic update protection as heating zones ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @neonsp)
+- **Fixed Resume All Schedules not refreshing** - Button now properly triggers immediate refresh ([#44](https://github.com/hiall-fyi/tado_ce/issues/44) - @hapklaar)
 - AC state changes (temperature, mode, fan, swing) now update immediately without bouncing back
 
 ## [1.8.0] - 2026-01-26
